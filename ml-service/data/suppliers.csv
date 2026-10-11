@@ -1,0 +1,9 @@
+supplier_id,name,contact_email,city
+S1,TechSource Distributors,sales@techsourcedistributors.in,Bengaluru
+S2,Sunrise Electronics,sales@sunriseelectronics.in,Chennai
+S3,Bharat Components,sales@bharatcomponents.in,Mumbai
+S4,Metro Office Supplies,sales@metroofficesupplies.in,Delhi
+S5,Orion Imports,sales@orionimports.in,Hyderabad
+S6,QuickShip Traders,sales@quickshiptraders.in,Pune
+S7,Value Wholesale Co,sales@valuewholesaleco.in,Kolkata
+S8,Zenith Logistics,sales@zenithlogistics.in,Ahmedabad

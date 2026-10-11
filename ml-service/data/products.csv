@@ -1,0 +1,41 @@
+product_id,sku,name,category,price,cost,lead_time_days,supplier_ids
+P001,SKU-1001,USB Hub 4-Port,Computer Accessories,350,252.47,5,S1
+P002,SKU-1002,Mechanical Keyboard,Computer Accessories,660,438.85,6,S3
+P003,SKU-1003,Wireless Mouse,Computer Accessories,485,348.66,7,"S1,S3"
+P004,SKU-1004,Webcam 1080p,Computer Accessories,1935,1484.97,10,S2
+P005,SKU-1005,Laptop Stand,Computer Accessories,700,461.23,7,S3
+P006,SKU-1006,External HDD 1TB,Computer Accessories,6240,4716.3,9,"S2,S5"
+P007,SKU-1007,USB Flash Drive 64GB,Computer Accessories,390,307.8,6,S5
+P008,SKU-1008,Laptop Backpack,Computer Accessories,1145,756.2,8,S4
+P009,SKU-1009,Phone Charger 20W,Mobile & Audio,845,648.81,5,S1
+P010,SKU-1010,Power Bank 10000mAh,Mobile & Audio,1430,1110.98,7,"S1,S2"
+P011,SKU-1011,Bluetooth Earbuds,Mobile & Audio,1950,1526.31,10,S2
+P012,SKU-1012,Wired Earphones,Mobile & Audio,195,145.19,6,"S5,S3"
+P013,SKU-1013,Bluetooth Speaker,Mobile & Audio,1935,1320.47,12,"S2,S6"
+P014,SKU-1014,Smartwatch,Mobile & Audio,4550,3018.77,14,S6
+P015,SKU-1015,Phone Case,Mobile & Audio,235,169.74,6,S3
+P016,SKU-1016,Tempered Glass,Mobile & Audio,115,81.5,4,"S3,S5"
+P017,SKU-1017,Table Fan,Home Appliances,1230,921.53,10,S7
+P018,SKU-1018,Pedestal Fan,Home Appliances,4160,2755.71,12,"S7,S3"
+P019,SKU-1019,Air Cooler,Home Appliances,9750,6488.63,15,S7
+P020,SKU-1020,Electric Kettle,Home Appliances,700,525.88,7,S4
+P021,SKU-1021,Steam Iron,Home Appliances,860,605.01,8,"S4,S5"
+P022,SKU-1022,Mixer Grinder,Home Appliances,2465,1785.57,9,S5
+P023,SKU-1023,Notebook 200 Pages,Stationery & Office,195,135.91,5,S4
+P024,SKU-1024,A4 Paper Ream,Stationery & Office,335,263.75,4,S4
+P025,SKU-1025,Ball Pens Pack,Stationery & Office,70,51.98,4,S4
+P026,SKU-1026,Highlighter Set,Stationery & Office,125,88.15,5,"S4,S5"
+P027,SKU-1027,Scientific Calculator,Stationery & Office,790,583.63,8,S3
+P028,SKU-1028,Geometry Box,Stationery & Office,140,110.67,6,S4
+P029,SKU-1029,File Folders,Stationery & Office,95,68.88,5,S4
+P030,SKU-1030,Whiteboard Markers,Stationery & Office,110,83.64,5,"S4,S5"
+P031,SKU-1031,WiFi Router AC1200,Networking,2340,1591.46,9,"S1,S3"
+P032,SKU-1032,Ethernet Cable 5m,Networking,140,110.46,5,S3
+P033,SKU-1033,WiFi Range Extender,Networking,1320,882.23,10,"S2,S6"
+P034,SKU-1034,USB WiFi Adapter,Networking,430,331.88,7,S8
+P035,SKU-1035,Network Switch 8-Port,Networking,1250,843.53,11,S8
+P036,SKU-1036,Gaming Mouse,Gaming & Lifestyle,1230,831.45,10,S2
+P037,SKU-1037,Gaming Headset,Gaming & Lifestyle,3380,2297.33,12,"S2,S8"
+P038,SKU-1038,Mousepad XL,Gaming & Lifestyle,350,278.14,6,S3
+P039,SKU-1039,Game Controller,Gaming & Lifestyle,1870,1459.97,18,"S6,S8"
+P040,SKU-1040,LED Strip Lights,Gaming & Lifestyle,545,386.95,15,S6

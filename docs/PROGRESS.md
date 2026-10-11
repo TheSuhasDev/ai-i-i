@@ -21,7 +21,18 @@ Deliverable: three services running locally - confirmed
 - Server uses ES modules ("type": "module")
 - Database: <local MongoDB / Atlas - fill in>
 
-## Next: Day 2 - Data models and synthetic dataset
-- Mongoose schemas: User, Product, Inventory, Sale, Supplier, PurchaseOrder
-- ml-service/data/generate_data.py (seed 42) following the Synthetic Data Design section
-- Run validation checks before Day 3
+## Day 2: Data models and synthetic dataset - DONE
+Tasks done:
+- Mongoose models: User, Supplier, Product, Inventory, Sale, PurchaseOrder (server/src/models)
+- ml-service/data/generate_data.py (seed 42) producing products, suppliers, sales, inventory_snapshot,
+  stock_history, purchase_orders and scenario_labels CSVs
+- ml-service/data/validate_data.py: all checks pass; plot checked visually
+- server/src/seed/seed.js written and dry-run tested (real seeding happens on Day 3)
+Demo logins (seeded on Day 3): admin@inventory.com / Admin@123, manager@inventory.com / Manager@123,
+staff@inventory.com / Staff@123
+Decisions: see docs/NOTES.md (ABC has 9 A products, provisional health/alert rules, stock built backwards)
+
+## Next: Day 3 - Backend APIs
+- JWT register/login + role middleware, CRUD routes for products, inventory, sales, suppliers, purchase orders
+- express-validator or Zod, central error handler
+- Run npm run seed, test everything in Postman
