@@ -32,7 +32,17 @@ Demo logins (seeded on Day 3): admin@inventory.com / Admin@123, manager@inventor
 staff@inventory.com / Staff@123
 Decisions: see docs/NOTES.md (ABC has 9 A products, provisional health/alert rules, stock built backwards)
 
-## Next: Day 3 - Backend APIs
-- JWT register/login + role middleware, CRUD routes for products, inventory, sales, suppliers, purchase orders
-- express-validator or Zod, central error handler
-- Run npm run seed, test everything in Postman
+## Day 3: Backend APIs - DONE
+Tasks done:
+- JWT auth (register, login, me), protect + authorize(role) middleware
+- Generic CRUD controller factory; routes for suppliers, products, inventory, sales, purchase-orders
+- Zod validation, central error handler, 404 handler
+- MongoDB seeded via npm run seed (3 users, 8 suppliers, 40 products, 40 inventory, 29,200 sales, 398 POs)
+- Tested in Postman (collection saved at docs/postman_collection.json)
+New env vars (server): JWT_SECRET, JWT_EXPIRES_IN, NODE_ENV
+Demo logins: admin@inventory.com / Admin@123, manager@inventory.com / Manager@123, staff@inventory.com / Staff@123
+API summary: see docs/NOTES.md
+
+## Next: Day 4 - Frontend shell
+- Layout, sidebar, protected routes, login page, Axios service layer (token in header)
+- Product, supplier and purchase-order list and form pages against the real API

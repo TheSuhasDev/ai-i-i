@@ -26,3 +26,26 @@
 - scenario_labels.csv is for validation only, never a model input.
 - ML service reads the CSVs directly; MongoDB holds the operational data for the app.
 - Baseline weekly MAPE (4-week moving average) is about 29%, so the trained model has room to improve.
+
+## Day 3: Backend APIs
+- Auth: JWT (HS256), payload {id, role}, expiry 7d. Passwords hashed with bcryptjs (10 rounds).
+  Public register always creates role "staff". admin/manager come from the seed.
+- Roles: read = any logged-in user; create/update = admin, manager; delete = admin.
+  Exceptions: staff can POST /sales and PUT /inventory/:id.
+- Validation: Zod schemas in server/src/validators/schemas.js; unknown fields are stripped (blocks mass assignment).
+- Errors: one central handler returns {success:false, message, details?}.
+  Mapped: Zod/Mongoose validation 400, CastError 400, duplicate key 409, JWT errors 401, not found 404.
+- Lists: ?page &limit (max 200) &sort &search plus per-resource filters.
+- Sales revenue = unitsSold x unitPrice when not supplied.
+- PO delayDays = actual - expected delivery (days, negative = early); status set to Delivered when an actual date is given.
+- Login returns the same error for unknown email and wrong password (no user enumeration).
+
+### API summary (for the report)
+| Resource | Base path | Notes |
+|---|---|---|
+| Auth | /api/auth | POST register, POST login, GET me |
+| Suppliers | /api/suppliers | CRUD, search name/code/city |
+| Products | /api/products | CRUD, filter category/isActive/supplier |
+| Inventory | /api/inventory | CRUD, filter product |
+| Sales | /api/sales | CRUD, filter product/promoFlag/from/to |
+| Purchase orders | /api/purchase-orders | CRUD, filter product/supplier/status/qualityIssue |
