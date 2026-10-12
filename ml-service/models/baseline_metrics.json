@@ -1,0 +1,65 @@
+{
+  "generated_at": "2026-10-12T15:07:31.583154+00:00",
+  "granularity": "weekly (Mon-Sun)",
+  "split_date": "2026-04-13",
+  "train_weeks_per_product": 78,
+  "test_weeks_per_product": 26,
+  "n_products": 40,
+  "metric_definitions": {
+    "mae": "mean absolute error, units/week, pooled over all product-weeks",
+    "rmse": "root mean squared error, units/week, pooled",
+    "mape": "mean absolute percentage error %, pooled, weeks with zero actual demand ignored",
+    "wape": "sum(|error|) / sum(actual) %",
+    "mape_by_product_mean": "MAPE computed per product, then averaged"
+  },
+  "baselines": {
+    "naive_1step": "Last week's demand (one-step-ahead)",
+    "ma4_1step": "Mean of the last 4 weeks (one-step-ahead)",
+    "seasonal_naive": "Same week last year (lag 52)",
+    "naive_static": "Last training week, held flat for all test weeks",
+    "ma4_static": "Mean of last 4 training weeks, held flat (matches the Day 2 validation check)"
+  },
+  "metrics": {
+    "naive_1step": {
+      "mae": 27.611538461538462,
+      "rmse": 47.43335405516963,
+      "mape": 26.21904570390276,
+      "wape": 20.828618678736184,
+      "mape_by_product_mean": 26.219045703902772,
+      "n": 1040
+    },
+    "ma4_1step": {
+      "mae": 24.364903846153847,
+      "rmse": 40.4033420409367,
+      "mape": 22.540534083946955,
+      "wape": 18.37953694838541,
+      "mape_by_product_mean": 22.540534083946955,
+      "n": 1040
+    },
+    "seasonal_naive": {
+      "mae": 35.39423076923077,
+      "rmse": 57.28597291054497,
+      "mape": 33.099544181684074,
+      "wape": 26.699451649403777,
+      "mape_by_product_mean": 33.099544181684074,
+      "n": 1040
+    },
+    "naive_static": {
+      "mae": 38.440384615384616,
+      "rmse": 59.57713164784467,
+      "mape": 38.78036001165172,
+      "wape": 28.997301766907473,
+      "mape_by_product_mean": 38.78036001165172,
+      "n": 1040
+    },
+    "ma4_static": {
+      "mae": 30.69903846153846,
+      "rmse": 48.12854382556396,
+      "mape": 29.049896553064276,
+      "wape": 23.157658049728727,
+      "mape_by_product_mean": 29.049896553064276,
+      "n": 1040
+    }
+  },
+  "best_one_step_baseline": "ma4_1step"
+}

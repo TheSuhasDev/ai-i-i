@@ -53,8 +53,15 @@ Tasks done:
 Run: server npm run dev, client npm run dev, then open http://localhost:5173
 - Extra: Inventory and Sales list/form pages (staff can record sales and update stock counts)
 
-## Next: Day 5 - Data preparation and baseline (ml-service)
-- Load CSVs with Pandas, aggregate to daily/weekly demand per product
-- Feature engineering: lags, rolling mean/std, day of week, month, holiday flags, price
-- Time-based split (first 548 days train, last 182 test), never random
-- Baseline: naive and moving average with MAE, RMSE, MAPE
+## Day 5: Data preparation and baseline - DONE
+Tasks done:
+- ml-service/app/preprocessing.py: cleaning, weekly aggregation, 19 features, time-based split
+- ml-service/app/evaluation.py: MAE, RMSE, MAPE, WAPE
+- ml-service/app/baseline.py: naive, 4-week MA and seasonal naive, one-step and static; metrics saved to models/baseline_metrics.json
+- 8 pytest tests including no-leakage checks (python -m pytest)
+Run: cd ml-service; python -m pytest; python -m app.baseline
+
+## Next: Day 6 - Demand forecasting
+- Train Random Forest / XGBoost on FEATURE_COLS (train weeks only), evaluate on test weeks, compare with the one-step baselines
+- Multi-week forecast for lead-time demand (recursive prediction), save model with joblib, store metrics JSON
+- POST /forecast in FastAPI returning real predictions

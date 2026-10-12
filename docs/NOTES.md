@@ -71,3 +71,23 @@
   edit for admin/manager, delete for admin. Unit price pre-fills from the product; revenue = units x price (server-computed).
   One sale per product per day (unique index).
 - Rules mirror the API permissions from Day 3; the server remains the real enforcement.
+
+## Day 5: Data preparation and baseline
+- Code: ml-service/app/preprocessing.py (load, clean, weekly aggregation, features, time split),
+  app/evaluation.py (MAE, RMSE, MAPE, WAPE), app/baseline.py, tests in tests/test_preprocessing.py.
+- Granularity: weekly (Mon-Sun). Daily MAPE is not meaningful with CV up to 0.9 and many zero days;
+  weekly matches the plan's MAPE target. Demand over a lead time of L days is approximated as (weekly forecast / 7) x L.
+- Cleaning: duplicates dropped, negatives clipped, missing calendar days filled with 0. Injected spikes and zero days are
+  kept on purpose (Isolation Forest needs them). is_anomaly and scenario_labels are never features.
+- Features (19): lags 1,2,3,4,8; rolling mean and std over 4 and 8 weeks; growth_4_8 (mean4/mean8); cv_8;
+  price, promo_days, holiday_days; month, sin/cos week of year; lead_time_days, category_code.
+  Lag/rolling features use only weeks before the target (verified by unit tests).
+  Promo, holiday, price and lead time describe the target week and are known in advance.
+- Holiday flags are approximate (fixed dates plus Diwali windows); the synthetic data only has month-level seasonality.
+- Split: first 548 days train, last 182 test; split date 2026-04-13 (a Monday). Never random.
+- Baselines: naive (last week), 4-week moving average, seasonal naive (same week last year).
+  Two modes: one-step-ahead (the model's benchmark) and static multi-step (frozen at the split; matches the Day 2 check).
+- MAPE ignores weeks with zero actual demand. Pooled MAPE and mean per-product MAPE are both reported.
+- Metrics saved to ml-service/models/baseline_metrics.json (committed; only *.joblib is git-ignored).
+- Baseline results (fill in from your run):
+  naive_1step __% | ma4_1step __% | seasonal_naive __% | naive_static __% | ma4_static __% (MAPE)
