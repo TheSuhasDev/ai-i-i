@@ -4,6 +4,8 @@ from datetime import datetime, timezone
 from dotenv import load_dotenv
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from app.routes_forecast import router as forecast_router
+from app.routes_risk import router as risk_router
 
 load_dotenv()
 
@@ -17,7 +19,8 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-
+app.include_router(forecast_router)
+app.include_router(risk_router)
 @app.get("/health")
 def health():
     return {

@@ -1,0 +1,143 @@
+{
+  "generated_at": "2026-10-12T16:33:02.857595+00:00",
+  "granularity": "weekly (Mon-Sun)",
+  "split_date": "2026-04-13",
+  "validation_weeks": 13,
+  "target": "units / mean of last 8 weeks (scale-free), sample weight = scale",
+  "horizons_weeks": [
+    1,
+    2,
+    3
+  ],
+  "results": {
+    "1": {
+      "selected_model": "hgb",
+      "validation_wape": {
+        "rf": 16.39,
+        "hgb": 15.69
+      },
+      "test": {
+        "model": {
+          "mae": 21.650956289288157,
+          "rmse": 37.198860461841136,
+          "mape": 20.0939251150541,
+          "wape": 16.33228489632089,
+          "mape_by_product_mean": 20.0939251150541,
+          "n": 1040
+        },
+        "naive": {
+          "mae": 27.611538461538462,
+          "rmse": 47.43335405516963,
+          "mape": 26.21904570390276,
+          "wape": 20.828618678736184,
+          "mape_by_product_mean": 26.219045703902772,
+          "n": 1040
+        },
+        "ma4": {
+          "mae": 24.364903846153847,
+          "rmse": 40.4033420409367,
+          "mape": 22.540534083946955,
+          "wape": 18.37953694838541,
+          "mape_by_product_mean": 22.540534083946955,
+          "n": 1040
+        }
+      },
+      "wape_gain_vs_ma4_pct": 11.1,
+      "interval_80_coverage_pct": 81.1,
+      "n_test_rows": 1040
+    },
+    "2": {
+      "selected_model": "hgb",
+      "validation_wape": {
+        "rf": 16.95,
+        "hgb": 16.42
+      },
+      "test": {
+        "model": {
+          "mae": 22.524018530708705,
+          "rmse": 38.59387103134517,
+          "mape": 20.454140260420967,
+          "wape": 16.990874801938848,
+          "mape_by_product_mean": 20.454140260420967,
+          "n": 1040
+        },
+        "naive": {
+          "mae": 30.471153846153847,
+          "rmse": 51.50825176610054,
+          "mape": 27.705822810162474,
+          "wape": 22.98575448980184,
+          "mape_by_product_mean": 27.70582281016247,
+          "n": 1040
+        },
+        "ma4": {
+          "mae": 25.223557692307693,
+          "rmse": 41.89733044093529,
+          "mape": 22.877135554900295,
+          "wape": 19.0272579568863,
+          "mape_by_product_mean": 22.877135554900295,
+          "n": 1040
+        }
+      },
+      "wape_gain_vs_ma4_pct": 10.7,
+      "interval_80_coverage_pct": 78.8,
+      "n_test_rows": 1040
+    },
+    "3": {
+      "selected_model": "hgb",
+      "validation_wape": {
+        "rf": 17.74,
+        "hgb": 16.96
+      },
+      "test": {
+        "model": {
+          "mae": 23.147035201957156,
+          "rmse": 39.601789816666134,
+          "mape": 20.88890315203279,
+          "wape": 17.460844148051354,
+          "mape_by_product_mean": 20.88890315203279,
+          "n": 1040
+        },
+        "naive": {
+          "mae": 30.614423076923078,
+          "rmse": 51.75824906383374,
+          "mape": 28.084716074954297,
+          "wape": 23.093828879798068,
+          "mape_by_product_mean": 28.084716074954294,
+          "n": 1040
+        },
+        "ma4": {
+          "mae": 25.880288461538463,
+          "rmse": 42.52881093582778,
+          "mape": 23.565670869724098,
+          "wape": 19.522659355325384,
+          "mape_by_product_mean": 23.565670869724094,
+          "n": 1040
+        }
+      },
+      "wape_gain_vs_ma4_pct": 10.6,
+      "interval_80_coverage_pct": 82.9,
+      "n_test_rows": 1040
+    }
+  },
+  "feature_importance_h1": {
+    "promo_days": 0.0114513835606188,
+    "r0": 0.004006613539489584,
+    "cv_8": 0.0028403739642332672,
+    "mean4_ratio": 0.002447287927796854,
+    "r7": 0.0013860281181420353,
+    "log_scale": 0.0013388119805454513,
+    "r1": 0.0009378411291808108,
+    "std4_ratio": 0.0006523238160466793,
+    "promo_days_o": 0.0004720109144722595,
+    "r2": 0.00016800491009527074,
+    "category_code": 0.0001344196632766803,
+    "lead_time_days": 0.00011964988779997743,
+    "woy_sin": 2.580461805606893e-05,
+    "month": 1.0886486102668069e-05,
+    "price_ratio": 0.0,
+    "woy_cos": -1.6156808749950845e-05,
+    "holiday_days": -4.3807132855283594e-05,
+    "r3": -0.0002751563487746911
+  },
+  "notes": "Metrics from train-only fit evaluated on held-out weeks. Saved model is refit on all data."
+}

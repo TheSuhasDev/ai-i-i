@@ -1,0 +1,100 @@
+{
+  "generated_at": "2026-10-12T17:21:37.495676+00:00",
+  "label": "stock < lead-time demand (next lead_time days) + 1.65 * std(60d) * sqrt(lead_time)",
+  "split_date": "2026-04-13",
+  "validation_days": 60,
+  "selected_model": "logreg",
+  "validation_pr_auc": {
+    "rf": 0.978,
+    "logreg": 0.9796
+  },
+  "threshold": 0.4942,
+  "class_weights": "balanced; probabilities calibrated (Platt) on the validation fold",
+  "train_positive_rate": 0.1613,
+  "test": {
+    "n": 6952,
+    "positive_rate": 0.1611,
+    "at_threshold": {
+      "precision": 0.9114,
+      "recall": 0.9455,
+      "f1": 0.9281,
+      "tp": 1059,
+      "fp": 103,
+      "fn": 61,
+      "tn": 5729
+    },
+    "at_0_5": {
+      "precision": 0.9128,
+      "recall": 0.9437,
+      "f1": 0.928,
+      "tp": 1057,
+      "fp": 101,
+      "fn": 63,
+      "tn": 5731
+    },
+    "roc_auc": 0.9963,
+    "pr_auc": 0.9828,
+    "brier": 0.0176
+  },
+  "rule_baseline_stock_ratio_lt_1": {
+    "precision": 0.9213,
+    "recall": 0.9411,
+    "f1": 0.9311,
+    "tp": 1054,
+    "fp": 90,
+    "fn": 66,
+    "tn": 5742
+  },
+  "calibration_table": [
+    {
+      "bin": "(-0.001, 0.1]",
+      "n": 5522,
+      "predicted": 0.002,
+      "actual": 0.003
+    },
+    {
+      "bin": "(0.1, 0.3]",
+      "n": 176,
+      "predicted": 0.184,
+      "actual": 0.125
+    },
+    {
+      "bin": "(0.3, 0.5]",
+      "n": 96,
+      "predicted": 0.402,
+      "actual": 0.26
+    },
+    {
+      "bin": "(0.5, 0.7]",
+      "n": 96,
+      "predicted": 0.609,
+      "actual": 0.521
+    },
+    {
+      "bin": "(0.7, 0.9]",
+      "n": 196,
+      "predicted": 0.816,
+      "actual": 0.77
+    },
+    {
+      "bin": "(0.9, 1.0]",
+      "n": 866,
+      "predicted": 0.982,
+      "actual": 0.988
+    }
+  ],
+  "feature_importance": {
+    "stock_ratio": 0.4184,
+    "cover_ltd": 0.3133,
+    "cover_days": 0.0778,
+    "cv_60": 0.0041,
+    "growth_28_90": 0.0013,
+    "sup_ontime": 0.0004,
+    "doy_sin": 0.0002,
+    "mean7_ratio": 0.0001,
+    "doy_cos": -0.0001,
+    "sup_delay": -0.0002,
+    "lead_time_days": -0.0008
+  },
+  "notes": "Daily rows of one product are autocorrelated, so the effective sample size is smaller than n."
+}

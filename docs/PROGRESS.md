@@ -61,7 +61,22 @@ Tasks done:
 - 8 pytest tests including no-leakage checks (python -m pytest)
 Run: cd ml-service; python -m pytest; python -m app.baseline
 
-## Next: Day 6 - Demand forecasting
-- Train Random Forest / XGBoost on FEATURE_COLS (train weeks only), evaluate on test weeks, compare with the one-step baselines
-- Multi-week forecast for lead-time demand (recursive prediction), save model with joblib, store metrics JSON
-- POST /forecast in FastAPI returning real predictions
+## Day 6: Demand forecasting - DONE
+Tasks done:
+- Direct 1/2/3-week models (scale-free target), validation-based model choice, baselines at the same horizons
+- models/forecast_models.joblib (git-ignored) and models/forecast_metrics.json
+- POST /forecast: weekly forecasts with 80% range, promo/price inputs, lead-time demand
+- 13 pytest tests including no-leakage and train/serve parity
+Run: cd ml-service; python -m pytest; python -m app.train_forecast; uvicorn app.main:app --reload --port 8000
+
+## Day 7: Stockout risk and trend detection - DONE
+Tasks done:
+- Stockout labels from stock history, class-weighted + calibrated classifier (RF vs logistic regression), metrics in models/risk_metrics.json
+- Trend (year-over-year, deseasonalised) and seasonality (lag-52 autocorrelation) detection, checked against planted ground truth
+- Endpoints: POST /risk, GET /risk/all, POST /trend, GET /trend/all
+- Tests: python -m pytest (24 passing)
+Run: cd ml-service; python -m app.train_risk; python -m app.trend; uvicorn app.main:app --reload --port 8000
+
+## Next: Day 8 - Rule-based intelligence (decision engine, with unit tests)
+- Smart reorder: order = forecast demand over lead time + safety stock - current stock, adjusted by supplier reliability (document the formula)
+- Safety stock, ABC-XYZ classification, supplier reliability and risk score

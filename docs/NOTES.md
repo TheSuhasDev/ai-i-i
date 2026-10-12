@@ -91,3 +91,50 @@
 - Metrics saved to ml-service/models/baseline_metrics.json (committed; only *.joblib is git-ignored).
 - Baseline results (fill in from your run):
   naive_1step __% | ma4_1step __% | seasonal_naive __% | naive_static __% | ma4_static __% (MAPE)
+
+  ## Day 6: Demand forecasting
+- Code: ml-service/app/forecasting.py (origin-based feature table, inference, lead-time demand),
+  app/train_forecast.py (selection, evaluation, saving), app/routes_forecast.py (POST /forecast), tests/test_forecasting.py.
+- Direct models for h = 1, 2, 3 weeks (reorder needs 4-18 days). Features use weeks <= origin only, plus target-week
+  promo/holiday/price/calendar known in advance. Training and live inference share make_origin_table (parity test).
+- Target = units / mean of last 8 weeks, so one model serves fast and slow products. Ratio features clipped at 3x to limit
+  spike pollution. Sample weight = scale so training matches WAPE (unit-based).
+- Algorithm per horizon (Random Forest vs HistGradientBoosting, MAE loss) chosen on the last 13 train weeks;
+  test set used once. Reported metrics are from the train-only fit; the saved model is refit on all data.
+- 80% prediction interval from validation residual quantiles; coverage on test reported in forecast_metrics.json.
+- Lead-time demand = weekly forecast / 7 x lead time days (ignores weekend uplift; list under limitations).
+- Baselines at the same horizons: naive (last week) and 4-week MA on the same test rows.
+- Results (test: 26 weeks x 40 products, train-only fit):
+  h=1 hgb WAPE 16.33% / MAPE 20.09% / MAE 21.65 / RMSE 37.20 vs ma4 18.38% / 22.54%
+  h=2 hgb WAPE 16.99% / MAPE 20.45% vs ma4 19.03% / 22.88%
+  h=3 hgb WAPE 17.46% / MAPE 20.89% vs ma4 19.52% / 23.57%
+  Gain vs ma4 (WAPE): 11.1% / 10.7% / 10.6%. 80% interval coverage: 81% / 79% / 83%.
+  HistGradientBoosting beat Random Forest on the validation fold at every horizon.
+  Top features at h=1: promo_days, r0, cv_8, mean4_ratio, r7.
+  h=1 model __ / __ vs ma4 __ / __ | h=2 model __ / __ vs ma4 __ / __ | h=3 model __ / __ vs ma4 __ / __
+- Model file (*.joblib) is git-ignored; regenerate with python -m app.train_forecast. forecast_metrics.json is committed.
+
+## Day 7: Stockout risk and trend detection
+- Code: ml-service/app/risk.py, train_risk.py, trend.py, routes_risk.py; tests/test_risk.py, test_trend.py.
+- Label: stock[t] < lead-time demand (units on days t+1..t+L) + safety stock (1.65 * std of last 60 days * sqrt(L)). Same as the Day 2 check.
+  It looks forward because it is the target; features use only data up to day t.
+- Features (11): stock_ratio, cover_ltd, cover_days, mean7_ratio, growth_28_90, cv_60, lead_time_days,
+  supplier on-time rate and recent delay (only POs already delivered by that day), day-of-year sin/cos.
+  Dropped: historical in-transit quantity (the synthetic history has no future orders, so it would cause train/serve skew).
+- Split: train rows are purged so each label window (day + lead time) ends before 2026-04-13; test = days on/after the split.
+  Validation fold = last 60 days of training (algorithm choice, calibration, threshold). Test set used once.
+- Imbalance: class weights (balanced). Probabilities calibrated with Platt scaling on the validation fold so risk % is meaningful.
+  Threshold = F1-optimal on validation. Production model refit on all labeled days with the same procedure.
+- Baseline: rule "stock_ratio < 1". The label is largely a function of stock and demand, so the model must beat this rule to add value.
+- Risk bands (provisional, Day 9 alerts combine risk with stockout vs delivery date): High >= 60%, Medium 30-60%, Low < 30%.
+- /risk accepts an optional stock override (used by the Day 12 simulator). /risk/all and /trend/all feed the dashboard.
+- Trend: year-over-year change over the last 104 weeks. Increasing/decreasing needs |change| >= 15% and |z| >= 2.
+  A plain linear slope is biased by seasonality; the 52-week difference cancels any 52-week pattern.
+- Seasonality: lag-52 autocorrelation of the detrended weekly series; seasonal if r >= 0.30 (p < 0.05). Peak month and uplift reported.
+- Pattern labels: increasing / stable / decreasing / seasonal / "increasing + seasonal" etc.
+- Trend and seasonality are checked against scenario_labels.csv (validation only): python -m app.trend.
+- Limitations: daily rows of one product are autocorrelated (effective sample size < n); risk model trained on synthetic data;
+  supplier features barely affect the label by construction (the label ignores supplier delay).
+- Results (fill from your run):
+  Risk: model __ F1 __ (P __, R __), ROC-AUC __, PR-AUC __ | rule baseline F1 __ (P __, R __) | train/test positive rate __% / __%
+  Trend agreement __%, seasonality agreement __%
