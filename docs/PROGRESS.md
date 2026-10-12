@@ -43,6 +43,18 @@ New env vars (server): JWT_SECRET, JWT_EXPIRES_IN, NODE_ENV
 Demo logins: admin@inventory.com / Admin@123, manager@inventory.com / Manager@123, staff@inventory.com / Staff@123
 API summary: see docs/NOTES.md
 
-## Next: Day 4 - Frontend shell
-- Layout, sidebar, protected routes, login page, Axios service layer (token in header)
-- Product, supplier and purchase-order list and form pages against the real API
+## Day 4: Frontend shell - DONE
+Tasks done:
+- Axios service layer with token interceptor and 401 handling (client/src/services)
+- AuthProvider context, ProtectedRoute (with role guard), Layout with sidebar and topbar
+- Login page; placeholder Dashboard (service status and record counts)
+- Product, Supplier and Purchase Order list pages (search, filters, pagination) and create/edit forms
+- Role-aware UI: staff read-only, manager add/edit, admin also delete
+Run: server npm run dev, client npm run dev, then open http://localhost:5173
+- Extra: Inventory and Sales list/form pages (staff can record sales and update stock counts)
+
+## Next: Day 5 - Data preparation and baseline (ml-service)
+- Load CSVs with Pandas, aggregate to daily/weekly demand per product
+- Feature engineering: lags, rolling mean/std, day of week, month, holiday flags, price
+- Time-based split (first 548 days train, last 182 test), never random
+- Baseline: naive and moving average with MAE, RMSE, MAPE

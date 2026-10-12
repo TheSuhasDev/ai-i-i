@@ -1,37 +1,50 @@
-import { useEffect, useState } from "react";
-import axios from "axios";
-
-function StatusCard({ name, status }) {
-  const color = status === "ok" ? "green" : status === "loading" ? "orange" : "red";
-  return (
-    <div style={{ border: `2px solid ${color}`, padding: 16, borderRadius: 8, minWidth: 180 }}>
-      <h3>{name}</h3>
-      <p style={{ color }}>{status}</p>
-    </div>
-  );
-}
-
+import { Navigate, Route, Routes } from "react-router-dom";
+import ProtectedRoute from "./components/ProtectedRoute";
+import Layout from "./components/Layout";
+import Login from "./pages/Login";
+import Dashboard from "./pages/Dashboard";
+import ProductList from "./pages/ProductList";
+import ProductForm from "./pages/ProductForm";
+import SupplierList from "./pages/SupplierList";
+import SupplierForm from "./pages/SupplierForm";
+import PurchaseOrderList from "./pages/PurchaseOrderList";
+import PurchaseOrderForm from "./pages/PurchaseOrderForm";
+import InventoryList from "./pages/InventoryList";
+import InventoryForm from "./pages/InventoryForm";
+import SaleList from "./pages/SaleList";
+import SaleForm from "./pages/SaleForm";
 export default function App() {
-  const [server, setServer] = useState("loading");
-  const [ml, setMl] = useState("loading");
-
-  useEffect(() => {
-    axios.get(`${import.meta.env.VITE_API_URL}/health`)
-      .then((r) => setServer(r.data.status))
-      .catch(() => setServer("down"));
-    axios.get(`${import.meta.env.VITE_ML_URL}/health`)
-      .then((r) => setMl(r.data.status))
-      .catch(() => setMl("down"));
-  }, []);
-
   return (
-    <div style={{ padding: 24, fontFamily: "sans-serif" }}>
-      <h1>AI Inventory Intelligence</h1>
-      <div style={{ display: "flex", gap: 16 }}>
-        <StatusCard name="Client" status="ok" />
-        <StatusCard name="Server (Express)" status={server} />
-        <StatusCard name="ML Service (FastAPI)" status={ml} />
-      </div>
-    </div>
+    <Routes>
+      <Route path="/login" element={<Login />} />
+
+      <Route element={<ProtectedRoute />}>
+        <Route element={<Layout />}>
+          <Route index element={<Dashboard />} />
+          <Route path="products" element={<ProductList />} />
+          <Route path="suppliers" element={<SupplierList />} />
+          <Route path="purchase-orders" element={<PurchaseOrderList />} />
+          <Route path="inventory" element={<InventoryList />} />
+          <Route path="inventory/:id/edit" element={<InventoryForm />} />
+          <Route path="sales" element={<SaleList />} />
+          <Route path="sales/new" element={<SaleForm />} />
+
+          {/* create/edit pages: admin and manager only */}
+          <Route element={<ProtectedRoute roles={["admin", "manager"]} />}>
+            <Route path="products/new" element={<ProductForm />} />
+            <Route path="products/:id/edit" element={<ProductForm />} />
+            <Route path="suppliers/new" element={<SupplierForm />} />
+            <Route path="suppliers/:id/edit" element={<SupplierForm />} />
+            <Route path="purchase-orders/new" element={<PurchaseOrderForm />} />
+            <Route path="purchase-orders/:id/edit" element={<PurchaseOrderForm />} />
+            <Route path="inventory/new" element={<InventoryForm />} />
+            <Route path="inventory/:id/edit" element={<InventoryForm />} />
+            <Route path="sales/:id/edit" element={<SaleForm />} />
+          </Route>
+        </Route>
+      </Route>
+
+      <Route path="*" element={<Navigate to="/" replace />} />
+    </Routes>
   );
 }

@@ -49,3 +49,25 @@
 | Inventory | /api/inventory | CRUD, filter product |
 | Sales | /api/sales | CRUD, filter product/promoFlag/from/to |
 | Purchase orders | /api/purchase-orders | CRUD, filter product/supplier/status/qualityIssue |
+
+## Day 4: Frontend shell
+- Client structure: services/ (axios + per-resource services), context/ (auth), hooks/useList, components/, pages/, utils/.
+- Auth: login stores the JWT and user in localStorage; an axios request interceptor adds the Bearer header;
+  a response interceptor clears storage and redirects to /login on any 401 (except the login call itself).
+  Limitation for the report: localStorage tokens can be read by injected scripts (XSS); httpOnly cookies would be safer.
+- Routing: <ProtectedRoute> redirects to /login when logged out; with a roles prop it also blocks other roles.
+  Create/edit pages require admin or manager. UI buttons mirror the server rules (Delete = admin only),
+  but the server is the real enforcement.
+- Lists use server-side pagination, search and filters through the useList hook (15 rows per page).
+- Forms: dedicated pages for create/edit; server validation messages are shown in an alert (field: message).
+- PO form: entering an actual delivery date sets status to Delivered; the server computes delayDays.
+- Dashboard is a placeholder with service status and record counts; replaced on Day 10.
+- Plain CSS in index.css, no UI library.
+
+### Day 4 addendum: Inventory and Sales pages
+- Inventory: list (sorted lowest stock first), "Update stock" form for all roles, add (admin/manager), delete (admin).
+  Editing stamps the snapshot date with today by default. One record per product (unique index).
+- Sales: list with product, date range and promo filters; record sale for all roles (staff included),
+  edit for admin/manager, delete for admin. Unit price pre-fills from the product; revenue = units x price (server-computed).
+  One sale per product per day (unique index).
+- Rules mirror the API permissions from Day 3; the server remains the real enforcement.
