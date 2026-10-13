@@ -77,6 +77,11 @@ Tasks done:
 - Tests: python -m pytest (24 passing)
 Run: cd ml-service; python -m app.train_risk; python -m app.trend; uvicorn app.main:app --reload --port 8000
 
-## Next: Day 8 - Rule-based intelligence (decision engine, with unit tests)
-- Smart reorder: order = forecast demand over lead time + safety stock - current stock, adjusted by supplier reliability (document the formula)
-- Safety stock, ABC-XYZ classification, supplier reliability and risk score
+## Day 8: Rule-based intelligence - DONE
+Tasks done:
+- ml-service/app/decision.py: safety stock (with lead-time variance), smart reorder (delay + reliability adjusted, formula in module docstring), ABC-XYZ, supplier reliability and risk score
+- ABC cutoffs 70/90% and XYZ cutoffs 0.25/0.35 calibrated on scenario_labels (ABC exact, XYZ 90%); XYZ misses are trend/seasonal products (CV counts them as variability)
+- 14 unit tests in tests/test_decision.py (python -m pytest, 38 passing)
+Run: cd ml-service; python -m pytest; python -m app.decision
+
+Next: Day 9 - health score, alerts, Express integration (mlService.js)

@@ -138,3 +138,33 @@
 - Results (fill from your run):
   Risk: model __ F1 __ (P __, R __), ROC-AUC __, PR-AUC __ | rule baseline F1 __ (P __, R __) | train/test positive rate __% / __%
   Trend agreement __%, seasonality agreement __%
+
+  ## Day 8: Rule-based intelligence - DONE
+Tasks done:
+- ml-service/app/decision.py: safety stock, smart reorder, ABC-XYZ, supplier reliability and risk score
+- ml-service/tests/test_decision.py: 14 unit tests (python -m pytest, 38 passing)
+- python -m app.decision prints the supplier table, ABC-XYZ matrix and reorder suggestions
+Run: cd ml-service; python -m pytest; python -m app.decision
+
+Formulas (also in the decision.py docstring)
+- Safety stock: SS = 1.65 * sqrt(LT * sigma_d^2 + d^2 * sigma_LT^2). With sigma_LT = 0 it equals the Day 2 / Day 7 label definition.
+- Smart reorder: order = max(0, ceil(demand over (LT + avg supplier delay) + SS * (1 + 0.5 * (1 - reliability/100)) - (stock + on_order)))
+- ABC: share of annual value; A up to 70%, B up to 90%, C the rest
+- XYZ: CV of weekly demand over 52 weeks; X < 0.25, Y < 0.35, Z otherwise
+- Supplier reliability (0-100): 40% on-time rate, 25% average delay (0 at 7+ days), 20% delay std (0 at 5+ days), 15% quality-issue rate (0 at 20%+). Rates are shrunk toward a prior (5 pseudo-orders). Risk score = 100 - reliability. Low < 20, Medium < 40, High >= 40.
+
+Decisions
+- products.csv has supplier_ids (a list); the first supplier is treated as the product's primary supplier
+- ABC and XYZ cutoffs calibrated on scenario_labels (abc_actual, xyz_actual). The same labels were used for validation, so on real data pick the cutoffs from business policy
+- smart_reorder takes the forecast lead-time demand as an input; the CLI uses last 28 days x lead time as a stand-in. Day 9 passes in the /forecast value and open POs (on_order)
+
+Results
+- Supplier reliability: S6, S7, S8 are High risk (scores 39, 47, 55); S1 to S4 score 83-97
+- ABC: 9 A products, 100% agreement with abc_actual
+- XYZ: 90% agreement (36/40). Misses: P017 and P018 (seasonal fans, CV inflated by seasonality), P005 and P040 (just below the 0.25 cutoff)
+- Reorder check by planted stock scenario: reorder 10/10, near 3/8, normal, over and well 0
+
+Known limitations
+- Weekly CV counts trend and seasonality as variability; a deseasonalised CV would fix the fan misses
+- Open POs are not counted in the CLI reorder check, so some near products show an order that Day 9 will remove
+- Reliability uses delivered POs only; weights and caps are judgment calls, not fitted
