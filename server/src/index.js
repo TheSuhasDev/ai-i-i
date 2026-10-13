@@ -12,6 +12,7 @@ import inventoryRoutes from "./routes/inventory.js";
 import saleRoutes from "./routes/sales.js";
 import purchaseOrderRoutes from "./routes/purchaseOrders.js";
 import { notFound, errorHandler } from "./middleware/errorHandler.js";
+import insightsRoutes from "./routes/insights.js";
 
 const app = express();
 
@@ -27,6 +28,7 @@ app.use("/api/products", productRoutes);
 app.use("/api/inventory", inventoryRoutes);
 app.use("/api/sales", saleRoutes);
 app.use("/api/purchase-orders", purchaseOrderRoutes);
+app.use("/api/insights", insightsRoutes);
 
 app.use(notFound);
 app.use(errorHandler);

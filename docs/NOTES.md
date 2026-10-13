@@ -168,3 +168,50 @@ Known limitations
 - Weekly CV counts trend and seasonality as variability; a deseasonalised CV would fix the fan misses
 - Open POs are not counted in the CLI reorder check, so some near products show an order that Day 9 will remove
 - Reliability uses delivered POs only; weights and caps are judgment calls, not fitted
+
+## Day 9: Health score, alerts and integration
+- Code (ml-service): app/health.py (pure functions), app/insights.py (combined per-product result),
+  app/routes_insights.py (POST /insights, GET /insights/all), tests/test_health.py.
+  Code (server): services/mlService.js (fetch client, 20 s timeout, 503 if the ML service is unreachable),
+  models/Insight.js, controllers/insightsController.js, routes/insights.js.
+- Health score (0-100) = 55% stock cover + 15% (100 - stockout risk %) + 15% supplier reliability + 15% demand stability.
+  Weights are judgment calls, not fitted. Status: below 40 Critical, 40-69 Warning, 70+ Healthy.
+  - Cover: stock ratio 0 -> 0, 1 -> 30, 2 -> 100. Above 90 days of cover the score falls from 100 to 35 at 250 days,
+    so overstock is penalised too.
+  - Stability: 100 x (1 - weekly CV / 0.8), floored at 0.
+- Alert priority from margin = days of cover - days until replenishment:
+  below 0 Critical (stockout before delivery), below 5 High, below 15 Medium, otherwise Low.
+  - Days of cover = stock / mean daily forecast (the 3-week forecast / 7).
+  - Days until replenishment = open PO expected date if one exists, otherwise lead time; the supplier's
+    average delay is added to both.
+- Alert list per product: stockout or low margin, reorder now, overstock, high-risk supplier; sorted by priority.
+- Reorder uses the /forecast lead-time demand and open POs (replaces the Day 8 stand-in).
+- Live stock: Express sends current stock and in-transit quantity from MongoDB; the ML service falls back to the
+  CSV snapshot. Insight collection keeps ONE document per product (latest result in `data`, plus indexed
+  priority, health and risk fields for filtering). No history is kept.
+- Endpoints: GET /api/insights/:code (recompute and store), GET /api/insights?priority=&status= (stored summaries,
+  most urgent first), POST /api/insights/refresh (admin, manager).
+- Checks:
+  - P001 (stock 40): Critical priority, health 32.5 Critical, margin -2.9 days, reorder 84 units.
+    Stock override to 400: Low priority, health 97.3 Healthy, no reorder. Health arithmetic verified by hand.
+  - Express: /refresh gave 40 ok, 0 failed; Critical filter returned 6 products, lowest health first.
+  - Dataset checkpoint: priorities 6 Critical / 6 High / 13 Medium / 15 Low; health 7 Critical / 15 Warning /
+    18 Healthy; 2 products at 0 cover (P039, P010); all 9 ABC-XYZ cells filled, AY has only 2 products
+    (CX has 10). Dataset left unchanged, because regenerating would invalidate every earlier result.
+  - Flip test (stock / 1.2, approximating +20% demand): 8 near-threshold products all rose to 36-73% risk and
+    5 of 8 changed priority (P037, P016, P040 High -> Critical; P003, P035 Medium -> High).
+  - pytest: 45 passed. Agreement with provisional labels (app.insights): health status 95% exact (38 of 40),
+    score correlation 0.97; alert priority 90% exact, 100% within one level. All 5 disagreements are at threshold
+    boundaries (health 70, margin 5 and 15) or from the label using generator parameters instead of the live forecast.
+  - P039 orderQty 0 explained by: an open PO of 85 units (inventory position 85 >= reorder point 68.6).
+    Critical priority is correct because stock is 0 until the PO arrives (about 9 days). Its supplier S6 has
+    reliability 38.8, so the PO itself is a delay risk.
+- Limitations:
+  - Risk probabilities are near binary on this data (7 products at about 99-100%, 26 at about 0%); priority
+    (margin) carries the nuance, so the UI should show both.
+  - "Days of cover" is defined three ways (forecast-based, last-28-day demand, lead-time demand); the UI shows only
+    stockout.days_of_cover.
+  - The forecast 80% interval is skewed upward (promo spikes in the validation residuals); use lead_time_demand_high
+    as a busy-week scenario, not as a safety-stock input.
+  - Weekly forecast / 7 ignores the weekend uplift.
+  - Health weights are not fitted to data.

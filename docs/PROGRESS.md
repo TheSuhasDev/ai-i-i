@@ -84,4 +84,12 @@ Tasks done:
 - 14 unit tests in tests/test_decision.py (python -m pytest, 38 passing)
 Run: cd ml-service; python -m pytest; python -m app.decision
 
-Next: Day 9 - health score, alerts, Express integration (mlService.js)
+## Day 9: Health score, alerts and integration - DONE
+Tasks done:
+- ml-service: health score, alert priority, combined POST /insights and GET /insights/all
+- server: mlService.js client, Insight collection, /api/insights endpoints (stored latest result per product)
+- Dataset checkpoint run: all features show on real output (AY cell has 2 products, noted as a limitation)
+Run: cd ml-service; python -m pytest; uvicorn app.main:app --reload --port 8000; cd ../server; npm run dev
+
+## Next: Day 10 - Main dashboard
+- Overview cards (critical alerts, products at risk, average health), Recharts charts, alerts page, product detail page
