@@ -1,10 +1,12 @@
 import Product from "../models/Product.js";
 import Inventory from "../models/Inventory.js";
 import Insight from "../models/Insight.js";
+import Sale from "../models/Sale.js";
 import mlService from "../services/mlService.js";
 import AppError from "../utils/AppError.js";
 
 const RANK = { Critical: 0, High: 1, Medium: 2, Low: 3 };
+const DAY = 86400000;
 
 async function computeAndStore(product) {
   const inv = await Inventory.findOne({ product: product._id });
@@ -33,7 +35,7 @@ async function computeAndStore(product) {
   );
 }
 
-// GET /api/insights/:code  -> forecast, risk, reorder, health and alerts for one product (recomputed and stored)
+// GET /api/insights/:code  -> full combined result for one product (recomputed and stored)
 export async function getInsight(req, res) {
   const product = await Product.findOne({ code: req.params.code.toUpperCase() });
   if (!product) throw new AppError(`Unknown product ${req.params.code}`, 404);
@@ -41,16 +43,50 @@ export async function getInsight(req, res) {
   res.json({ success: true, data: { ...doc.data, computedAt: doc.computedAt } });
 }
 
-// GET /api/insights?priority=Critical&status=Warning  -> stored summaries, most urgent first
+// GET /api/insights?priority=&status=&full=1  -> stored results, most urgent first.
+// Default returns light summaries; full=1 includes the whole payload (alerts, reorder, ...).
 export async function listInsights(req, res) {
   const filter = {};
   if (req.query.priority) filter.priority = req.query.priority;
   if (req.query.status) filter.healthStatus = req.query.status;
-  const docs = await Insight.find(filter)
-    .select("productCode priority healthScore healthStatus riskPct orderQty daysOfCover marginDays computedAt data.name data.classification.abc_xyz")
-    .lean();
+  let query = Insight.find(filter);
+  if (req.query.full !== "1") {
+    query = query.select(
+      "productCode priority healthScore healthStatus riskPct orderQty daysOfCover marginDays computedAt data.name data.classification"
+    );
+  }
+  const docs = await query.lean();
   docs.sort((a, b) => RANK[a.priority] - RANK[b.priority] || a.healthScore - b.healthScore);
   res.json({ success: true, count: docs.length, data: docs });
+}
+
+// GET /api/insights/:code/history?weeks=52  -> complete Monday-Sunday weeks of units sold
+export async function getHistory(req, res) {
+  const product = await Product.findOne({ code: req.params.code.toUpperCase() });
+  if (!product) throw new AppError(`Unknown product ${req.params.code}`, 404);
+  const weeks = Math.min(Math.max(parseInt(req.query.weeks) || 52, 4), 156);
+
+  const last = await Sale.findOne({ product: product._id }).sort("-date").select("date").lean();
+  if (!last) return res.json({ success: true, data: { code: product.code, weeks: [] } });
+
+  const since = new Date(last.date.getTime() - (weeks + 1) * 7 * DAY);
+  const rows = await Sale.aggregate([
+    { $match: { product: product._id, date: { $gt: since } } },
+    {
+      $group: {
+        _id: { y: { $isoWeekYear: "$date" }, w: { $isoWeek: "$date" } },
+        weekStart: { $min: "$date" },
+        units: { $sum: "$unitsSold" },
+        days: { $sum: 1 },
+      },
+    },
+    { $sort: { weekStart: 1 } },
+  ]);
+  const data = rows
+    .filter((r) => r.days === 7) // complete weeks only, like the ML service
+    .slice(-weeks)
+    .map((r) => ({ weekStart: r.weekStart.toISOString().slice(0, 10), units: r.units }));
+  res.json({ success: true, data: { code: product.code, weeks: data } });
 }
 
 // POST /api/insights/refresh  -> recompute every active product (admin, manager)

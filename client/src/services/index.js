@@ -17,6 +17,14 @@ export const purchaseOrderService = make("/purchase-orders");
 export const inventoryService = make("/inventory");
 export const saleService = make("/sales");
 
+export const insightService = {
+  list: (params = {}) => api.get("/insights", { params }),
+  get: (code) => api.get(`/insights/${code}`),
+  history: (code, weeks = 52) => api.get(`/insights/${code}/history`, { params: { weeks } }),
+  refresh: () => api.post("/insights/refresh"),
+  supplierRisk: () => api.get("/supplier-risk"),
+};
+
 export const authService = {
   login: (email, password) => api.post("/auth/login", { email, password }),
   me: () => api.get("/auth/me"),

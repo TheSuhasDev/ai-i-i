@@ -34,6 +34,7 @@ const mlService = {
   risk: (body) => call("/risk", { method: "POST", body }),
   trend: (body) => call("/trend", { method: "POST", body }),
   insights: (body) => call("/insights", { method: "POST", body }),
+  supplierRisk: () => call("/supplier-risk"),
 };
 
 export default mlService;

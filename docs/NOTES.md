@@ -215,3 +215,14 @@ Known limitations
     as a busy-week scenario, not as a safety-stock input.
   - Weekly forecast / 7 ignores the weekend uplift.
   - Health weights are not fitted to data.
+
+  ## Day 10: Dashboard
+- Recharts for charts. Pages: Dashboard (cards, health distribution, ABC-XYZ matrix, urgent table), Alerts, Smart Reorder,
+  Supplier Risk, product detail (/product/:code). Create PO on Smart Reorder opens the PO form prefilled from query params.
+- Cards: critical alerts (priority Critical), products at risk (stockout risk >= 30%, the Medium and High bands), average health, reorder now (order qty > 0).
+- Data flow: Express stores the latest insight per product; GET /api/insights returns summaries (full=1 adds the whole payload);
+  GET /api/insights/:code recomputes live; GET /api/insights/:code/history returns complete Mon-Sun weekly sales from MongoDB.
+- Forecast chart: 52 weeks of actuals + 3 forecast weeks with the 80% range (stacked areas: transparent low + band).
+- Supplier Risk and the reorder card render whatever fields the ML service returns; /supplier-risk exposes the full supplier score table.
+- Day 9 routes now wrapped in asyncHandler (safe on Express 4 and 5).
+- Not yet: SHAP "why" panel (Day 11), what-if simulator (Day 12).

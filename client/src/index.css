@@ -78,3 +78,38 @@ tr:last-child td { border-bottom: none; }
 .login-card { width: 360px; display: flex; flex-direction: column; gap: 14px; }
 .login-card h2 { margin: 0; }
 .login-card p { margin: 0; }
+
+/* day 10: dashboard */
+.nav-section { margin: 14px 20px 4px; font-size: 11px; text-transform: uppercase; letter-spacing: .08em; color: #6f7b99; }
+.grid2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(380px, 1fr)); gap: 16px; margin-bottom: 20px; }
+.grid2 h3 { margin-top: 0; }
+.card-link { text-decoration: none; color: inherit; }
+.card.stat { min-width: 190px; }
+.card.stat.bad { border-left: 5px solid var(--danger); }
+.card.stat .small { margin: 4px 0 0; }
+.alert.info { background: #edf2ff; border-color: #bac8ff; color: #364fc7; }
+.empty { text-align: center; padding: 40px; }
+.status-line { margin-top: 24px; }
+.wrap { white-space: normal; min-width: 320px; }
+.page-head .actions { align-items: center; gap: 12px; }
+
+.pill.critical { background: #ffe3e3; color: #c92a2a; }
+.pill.high { background: #ffe8cc; color: #d9480f; }
+.pill.medium, .pill.warning { background: #fff3bf; color: #a65f00; }
+.pill.low { background: #e7f5ff; color: #1864ab; }
+.pill.healthy { background: #d3f9d8; color: #2b8a3e; }
+
+.matrix { width: 100%; border-collapse: collapse; text-align: center; table-layout: fixed; }
+.matrix th, .matrix td { border: 1px solid var(--border); padding: 8px; white-space: normal; vertical-align: top; }
+.matrix-count { font-size: 22px; font-weight: 700; }
+
+.chart-tip { background: #fff; border: 1px solid var(--border); border-radius: 6px; padding: 8px 12px; font-size: 13px; }
+.kv { margin: 0 0 12px; }
+.kv > div { display: flex; justify-content: space-between; gap: 12px; padding: 5px 0; border-bottom: 1px solid #eef0f6; font-size: 14px; }
+.kv dt { color: var(--muted); }
+.kv dd { margin: 0; font-weight: 600; text-align: right; }
+ul.plain { list-style: none; padding: 0; margin: 0; }
+ul.plain li { padding: 6px 0; border-bottom: 1px solid #eef0f6; font-size: 14px; }
+.scorebar { display: grid; grid-template-columns: 150px 1fr 36px; gap: 10px; align-items: center; margin: 8px 0; font-size: 14px; }
+.bar { background: #eceff5; border-radius: 6px; height: 10px; overflow: hidden; }
+.bar > div { background: var(--primary); height: 100%; }

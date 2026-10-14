@@ -1,9 +1,9 @@
 import { useEffect, useState } from "react";
-import { Link, useNavigate, useParams } from "react-router-dom";
+import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { productService, supplierService, purchaseOrderService } from "../services";
 import { errorMessage } from "../services/api";
 import Field from "../components/Field";
-import { PO_STATUSES, toDateInput } from "../utils/format";
+import { PO_STATUSES, addDaysInput, toDateInput, todayInput } from "../utils/format";
 
 const empty = {
   poNumber: "", product: "", supplier: "", orderDate: "", expectedDeliveryDate: "",
@@ -13,6 +13,8 @@ const empty = {
 export default function PurchaseOrderForm() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const prefill = searchParams.toString();
   const [form, setForm] = useState(empty);
   const [products, setProducts] = useState([]);
   const [suppliers, setSuppliers] = useState([]);
@@ -27,6 +29,23 @@ export default function PurchaseOrderForm() {
       .then(([p, s]) => {
         setProducts(p.data.data);
         setSuppliers(s.data.data);
+        const q = new URLSearchParams(prefill);
+        if (!id && q.get("productCode")) {
+          const prod = p.data.data.find((x) => x.code === q.get("productCode"));
+          const sup = s.data.data.find((x) => x.code === q.get("supplierCode"));
+          if (prod) {
+            setForm((f) => ({
+              ...f,
+              poNumber: `PO-${todayInput().replaceAll("-", "")}-${prod.code}`,
+              product: prod._id,
+              supplier: sup?._id || "",
+              orderDate: todayInput(),
+              expectedDeliveryDate: addDaysInput(prod.leadTimeDays),
+              qtyOrdered: Number(q.get("qty")) || "",
+              unitCost: prod.cost,
+            }));
+          }
+        }
       })
       .catch((e) => setError(errorMessage(e)));
 
@@ -52,7 +71,7 @@ export default function PurchaseOrderForm() {
         })
         .catch((e) => setError(errorMessage(e)));
     }
-  }, [id]);
+  }, [id, prefill]);
 
   const set = (key) => (e) => setForm((f) => ({ ...f, [key]: e.target.value }));
 

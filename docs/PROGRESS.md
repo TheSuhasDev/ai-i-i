@@ -91,5 +91,13 @@ Tasks done:
 - Dataset checkpoint run: all features show on real output (AY cell has 2 products, noted as a limitation)
 Run: cd ml-service; python -m pytest; uvicorn app.main:app --reload --port 8000; cd ../server; npm run dev
 
-## Next: Day 10 - Main dashboard
-- Overview cards (critical alerts, products at risk, average health), Recharts charts, alerts page, product detail page
+## Day 10: Dashboard - DONE
+Tasks done:
+- Dashboard with overview cards, health distribution chart, ABC-XYZ matrix and urgent products table
+- Alerts, Smart Reorder (with Create PO), Supplier Risk and product detail pages (history + forecast chart)
+- Express: /api/insights/:code/history, /api/insights?full=1, /api/supplier-risk; ML: GET /supplier-risk
+Run: ml-service (uvicorn), server (npm run dev), client (npm run dev); click Refresh insights on the dashboard
+
+## Next: Day 11 - Explainable AI and anomaly detection
+- SHAP TreeExplainer on the risk model, top factors per prediction in plain language ("Why is this critical?" panel)
+- Isolation Forest for abnormal sales and stock behaviour, anomaly list (is_anomaly used only for evaluation)

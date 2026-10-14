@@ -141,6 +141,20 @@ def all_insights():
             continue
     return out
 
+def supplier_table():
+    """Supplier reliability/risk table for the Supplier Risk page. NaN/inf become null (JSON-safe)."""
+    _, sup = _tables()
+    out = []
+    for sid, row in sup.items():
+        clean = {}
+        for k, v in row.items():
+            if isinstance(v, (int, float, np.integer, np.floating)) and not isinstance(v, bool):
+                v = float(v)
+                clean[k] = v if np.isfinite(v) else None
+            else:
+                clean[k] = None if v is None or (not isinstance(v, str) and pd.isna(v)) else v
+        out.append({"supplier_id": str(sid), **clean})
+    return sorted(out, key=lambda r: r.get("reliability_score") if r.get("reliability_score") is not None else 0)
 
 def main():
     res = all_insights()

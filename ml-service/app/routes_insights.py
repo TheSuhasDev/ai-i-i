@@ -3,7 +3,7 @@ from typing import List, Optional
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
 
-from app.insights import all_insights, insights_for_product
+from app.insights import all_insights, insights_for_product, supplier_table
 
 router = APIRouter()
 
@@ -38,3 +38,7 @@ def insights_all():
         return all_insights()
     except FileNotFoundError:
         raise HTTPException(status_code=503, detail=NOT_TRAINED)
+
+@router.get("/supplier-risk")
+def supplier_risk():
+    return supplier_table()

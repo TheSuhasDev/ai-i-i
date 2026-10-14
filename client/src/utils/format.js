@@ -19,3 +19,17 @@ export const toDateInput = (d) => (d ? String(d).slice(0, 10) : "");
 
 // today's date in the user's local timezone, as YYYY-MM-DD for <input type="date">
 export const todayInput = () => new Date().toLocaleDateString("en-CA");
+
+export const PRIORITY_ORDER = { Critical: 0, High: 1, Medium: 2, Low: 3 };
+
+export const num = (n, d = 1) =>
+  n == null || Number.isNaN(Number(n)) ? "-" : Number(n).toLocaleString("en-IN", { maximumFractionDigits: d });
+
+export const humanize = (key) => String(key).replace(/_/g, " ").replace(/^./, (c) => c.toUpperCase());
+
+// YYYY-MM-DD for today + n days, in local time
+export const addDaysInput = (days) => {
+  const d = new Date();
+  d.setDate(d.getDate() + days);
+  return d.toLocaleDateString("en-CA");
+};
