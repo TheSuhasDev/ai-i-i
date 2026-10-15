@@ -17,6 +17,7 @@ import SupplierList from "./pages/SupplierList";
 import SupplierForm from "./pages/SupplierForm";
 import PurchaseOrderList from "./pages/PurchaseOrderList";
 import PurchaseOrderForm from "./pages/PurchaseOrderForm";
+import Anomalies from "./pages/Anomalies";
 
 export default function App() {
   return (
@@ -37,6 +38,7 @@ export default function App() {
           <Route path="sales" element={<SaleList />} />
           <Route path="sales/new" element={<SaleForm />} />
           <Route path="suppliers" element={<SupplierList />} />
+          <Route path="anomalies" element={<Anomalies />} />
           <Route path="purchase-orders" element={<PurchaseOrderList />} />
 
           {/* admin and manager only */}

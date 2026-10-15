@@ -103,3 +103,13 @@ export async function refreshAll(req, res) {
   }
   res.json({ success: true, data: result });
 }
+
+// GET /api/insights/:code/explain  -> why the stockout risk is what it is (uses live MongoDB stock)
+export async function getExplanation(req, res) {
+  const product = await Product.findOne({ code: req.params.code.toUpperCase() });
+  if (!product) throw new AppError(`Unknown product ${req.params.code}`, 404);
+  const inv = await Inventory.findOne({ product: product._id });
+  const body = { product_id: product.code };
+  if (inv) body.stock = inv.currentStock;
+  res.json({ success: true, data: await mlService.explain(body) });
+}

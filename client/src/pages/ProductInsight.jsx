@@ -6,6 +6,7 @@ import { insightService } from "../services";
 import ForecastChart from "../components/ForecastChart";
 import Pill from "../components/Pill";
 import { humanize, num } from "../utils/format";
+import WhyPanel from "../components/WhyPanel";
 
 const val = (v) => (v == null ? "-" : typeof v === "object" ? JSON.stringify(v) : typeof v === "number" ? num(v, 2) : String(v));
 
@@ -67,6 +68,8 @@ function ProductInsight({ code }) {
         <div className="card stat"><h4>Days of cover</h4><p className="big">{num(d.stockout.days_of_cover, 1)}</p><p className="muted small">delivery in {num(d.stockout.days_to_delivery, 1)} days</p></div>
         <div className="card stat"><h4>Recommended order</h4><p className="big">{d.reorder.order_qty}</p><p className="muted small">units</p></div>
       </div>
+
+    <WhyPanel code={d.product_id} />
 
       <div className="card">
         <h3>Sales history and forecast</h3>

@@ -7,6 +7,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.routes_forecast import router as forecast_router
 from app.routes_risk import router as risk_router
 from app.routes_insights import router as insights_router
+from app.routes_explain import router as explain_router
 
 load_dotenv()
 
@@ -23,6 +24,8 @@ app.add_middleware(
 app.include_router(forecast_router)
 app.include_router(risk_router)
 app.include_router(insights_router)
+app.include_router(explain_router)
+
 @app.get("/health")
 def health():
     return {

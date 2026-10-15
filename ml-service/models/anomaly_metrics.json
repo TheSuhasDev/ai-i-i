@@ -1,0 +1,66 @@
+{
+  "generated_at": "2026-10-14T16:55:41.780462+00:00",
+  "split_date": "2026-04-13",
+  "method": "Isolation Forest (300 trees); threshold = training-score quantile at the assumed contamination",
+  "contamination": {
+    "sales": 0.03,
+    "stock": 0.015
+  },
+  "results": {
+    "sales": {
+      "test_rows": 7280,
+      "base_rate": 0.0247,
+      "isolation_forest": {
+        "precision": 0.5872,
+        "recall": 0.7111,
+        "f1": 0.6432,
+        "flagged": 218,
+        "true": 180
+      },
+      "rule_baseline": {
+        "precision": 0.479,
+        "recall": 0.8222,
+        "f1": 0.6053,
+        "flagged": 309,
+        "true": 180
+      },
+      "roc_auc": 0.9661,
+      "pr_auc": 0.6496,
+      "threshold": 0.6931,
+      "recall_spikes": 0.631,
+      "n_spikes": 84,
+      "recall_zero_days": 0.781,
+      "n_zero_days": 96
+    },
+    "stock": {
+      "test_rows": 7240,
+      "base_rate": 0.0086,
+      "isolation_forest": {
+        "precision": 0.2921,
+        "recall": 0.8387,
+        "f1": 0.4333,
+        "flagged": 178,
+        "true": 62
+      },
+      "rule_baseline": {
+        "precision": 0.9333,
+        "recall": 0.9032,
+        "f1": 0.918,
+        "flagged": 60,
+        "true": 62
+      },
+      "roc_auc": 0.9932,
+      "pr_auc": 0.7765,
+      "threshold": 0.7292
+    },
+    "supplier_delay_rule": {
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1": 1.0,
+      "flagged": 1,
+      "true": 1,
+      "rule": "delay >= 15 days"
+    }
+  },
+  "notes": "is_anomaly is used only for evaluation. Stock anomalies are detected with a one-day delay."
+}

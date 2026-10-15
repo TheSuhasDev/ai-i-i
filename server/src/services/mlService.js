@@ -35,6 +35,8 @@ const mlService = {
   trend: (body) => call("/trend", { method: "POST", body }),
   insights: (body) => call("/insights", { method: "POST", body }),
   supplierRisk: () => call("/supplier-risk"),
+  explain: (body) => call("/explain", { method: "POST", body }),
+  anomalies: (params = {}) => call(`/anomalies?${new URLSearchParams(params)}`),
 };
 
 export default mlService;

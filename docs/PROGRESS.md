@@ -98,6 +98,14 @@ Tasks done:
 - Express: /api/insights/:code/history, /api/insights?full=1, /api/supplier-risk; ML: GET /supplier-risk
 Run: ml-service (uvicorn), server (npm run dev), client (npm run dev); click Refresh insights on the dashboard
 
-## Next: Day 11 - Explainable AI and anomaly detection
-- SHAP TreeExplainer on the risk model, top factors per prediction in plain language ("Why is this critical?" panel)
-- Isolation Forest for abnormal sales and stock behaviour, anomaly list (is_anomaly used only for evaluation)
+## Day 11: Explainable AI and anomaly detection - DONE
+Tasks done:
+- ml-service/app/anomaly.py: Isolation Forest for sales (spike, zero sales, drop) and stock (count mismatch), plus a rule for extreme supplier delays (15+ days)
+- python -m app.anomaly trains, evaluates against is_anomaly, saves models/anomaly_models.joblib (git-ignored) and models/anomaly_metrics.json
+- ml-service/app/routes_explain.py: GET /anomalies (days, product_id, limit, kind); Express GET /api/anomalies calls it through mlService.js
+- Anomalies page in the client: type cards, time and type filters, table with a plain-English "What happened" message per row
+- SHAP "Why is this critical?" panel on the risk model: (fill in: done / not done)
+- Bugs fixed: route/function signature mismatch (TypeError, 502 in Express); `kind` filter overwritten inside the sales loop (list only showed sales spikes)
+Run: cd ml-service; python -m app.anomaly; uvicorn app.main:app --reload --port 8000; cd ../server; npm run dev; cd ../client; npm run dev
+
+## Next: Day 12 - What-if simulator

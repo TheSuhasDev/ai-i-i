@@ -226,3 +226,40 @@ Known limitations
 - Supplier Risk and the reorder card render whatever fields the ML service returns; /supplier-risk exposes the full supplier score table.
 - Day 9 routes now wrapped in asyncHandler (safe on Express 4 and 5).
 - Not yet: SHAP "why" panel (Day 11), what-if simulator (Day 12).
+
+## Day 11: Explainable AI and anomaly detection
+- Code: ml-service/app/anomaly.py (features, training, live listing), app/routes_explain.py (GET /anomalies),
+  server/src/routes/anomalies.js, client Anomalies page.
+- Sales features (day t, previous 28 days only): sales_ratio = units / mean28, sales_z = (units - mean28) / std28,
+  zero_surprise = zero day x (1 - share of zero days in the last 28). Ratio and z are clipped.
+- Stock features: residual e_t = stock[t-1] - stock[t] - units[t] is 0 on a normal day. A count error reverses the next day
+  (a "blip"); a real restock does not. Features: |e_t|, |e_t+1|, blip size, all divided by recent daily demand.
+  Stock anomalies are therefore detected with a one-day delay (the latest day is not checked yet).
+- Scale-free features, so one model per anomaly family covers every product.
+- Model: Isolation Forest, 300 trees. Threshold = training-score quantile at the assumed contamination
+  (sales 3%, stock 1.5%). Contamination sets the threshold only, never the training labels.
+- Split: fit on the first 548 days, score the last 182. Production model refit on all rows with the same recipe.
+- is_anomaly is used only for evaluation, never as a feature.
+- Rule baselines for comparison: sales |z| >= 3 or a surprising zero day; stock blip >= 1.0; supplier delay >= 15 days.
+- Type rules: zero sales while out of stock is skipped (not an anomaly); zero sales with stock = zero_sales;
+  units above normal = sales_spike; below normal = sales_drop.
+- Explainability: every row carries a message with the numbers behind it ("24 units sold, 3.1x the usual 8 a day").
+- Listing: GET /anomalies?days=&product_id=&limit=&kind= returns count, by_type (counts before the kind filter and the limit)
+  and the newest-first list. Cards use by_type; the table uses the filtered, limited list.
+- Bugs and lessons:
+  - 502 from Express was only the ML service's 500; the real TypeError (4 positional args to a 3-arg function) was in the
+    FastAPI terminal. Call with keyword arguments so mismatches fail loudly. Pass the ML response body into AppError details.
+  - Variable shadowing: the sales loop reassigned `kind`, the filter argument, so "All types" returned only sales spikes.
+    Renamed the loop variable to atype. Cards (by_type) showed the full mix, which exposed the mismatch.
+- Results (fill from your run):
+  Sales: IF F1 __ (P __, R __) | rule F1 __ | ROC-AUC __, PR-AUC __ | recall spikes __%, zero days __%
+  Stock: IF F1 __ (P __, R __) | rule F1 __ | ROC-AUC __, PR-AUC __
+  Supplier delay rule: P __, R __
+  Live listing, 730 days: 707 stock mismatch, 485 zero sales, 358 sales spike, 1 supplier delay
+- Limitations:
+  - Contamination rates are assumptions, so flagged counts follow the threshold more than the data.
+  - The live listing also scores the training period with the production model, so counts there are in-sample.
+  - Scores are not comparable across types, and supplier delay has no score (rule-based).
+  - limit caps the list, so the table can show fewer rows than the card counts.
+  - sales_drop can appear in the list but has no card or dropdown option yet.
+  - The first 28 days of each product have no sales features (trailing window needs 28 days).

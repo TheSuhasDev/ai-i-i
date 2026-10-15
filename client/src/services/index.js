@@ -23,6 +23,11 @@ export const insightService = {
   history: (code, weeks = 52) => api.get(`/insights/${code}/history`, { params: { weeks } }),
   refresh: () => api.post("/insights/refresh"),
   supplierRisk: () => api.get("/supplier-risk"),
+  explain: (code) => api.get(`/insights/${code}/explain`),
+};
+
+export const anomalyService = {
+  list: (params = {}) => api.get("/anomalies", { params }),
 };
 
 export const authService = {

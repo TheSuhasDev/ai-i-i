@@ -113,3 +113,16 @@ ul.plain li { padding: 6px 0; border-bottom: 1px solid #eef0f6; font-size: 14px;
 .scorebar { display: grid; grid-template-columns: 150px 1fr 36px; gap: 10px; align-items: center; margin: 8px 0; font-size: 14px; }
 .bar { background: #eceff5; border-radius: 6px; height: 10px; overflow: hidden; }
 .bar > div { background: var(--primary); height: 100%; }
+
+   /* day 11: explainable AI */
+   .why { margin-bottom: 20px; }
+   .why h3 { margin-top: 0; }
+   ul.factors { list-style: none; padding: 0; margin: 12px 0; }
+   ul.factors li { padding: 10px 0; border-bottom: 1px solid #eef0f6; }
+   .factor-head { display: flex; gap: 12px; align-items: baseline; flex-wrap: wrap; }
+   .factor-head .dir { font-size: 12px; font-weight: 600; padding: 1px 8px; border-radius: 10px; }
+   ul.factors li.raises .dir { background: #ffe3e3; color: #c92a2a; }
+   ul.factors li.lowers .dir { background: #d3f9d8; color: #2b8a3e; }
+   ul.factors li.raises .bar > div { background: #e03131; }
+   ul.factors li.lowers .bar > div { background: #2f9e44; }
+   ul.factors p { margin: 6px 0 0; }
