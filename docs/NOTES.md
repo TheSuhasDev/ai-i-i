@@ -263,3 +263,23 @@ Known limitations
   - limit caps the list, so the table can show fewer rows than the card counts.
   - sales_drop can appear in the list but has no card or dropdown option yet.
   - The first 28 days of each product have no sales features (trailing window needs 28 days).
+
+  ## Day 12: What-if simulator
+- Code: ml-service/app/simulator.py, routes_simulate.py (POST /simulate), tests/test_simulator.py; Express POST /api/simulator
+  (live MongoDB stock and in-transit quantity are the baseline); client page /simulator with sliders, before/after table and a 30-day stock projection.
+- Inputs: demand change (%), extra supplier delay (days), scenario stock, new order quantity. Nothing is stored.
+- "Before" and "after" use the same function; "before" reproduces /insights (priority, risk, health, order qty) and is checked for all 40 products.
+- Demand shock: forecast x (1 + pct); for the risk model the last 28 days of sales are scaled, so the model sees a new demand level.
+- Delay shock: effective lead time = lead time + extra delay (risk features, demand over the lead time, safety stock) and every arriving order
+  (open PO, new order) is shifted later by the same number of days.
+- New order: arrives after lead time + average supplier delay + extra delay. The risk model ignores orders in transit (Day 7), so the order quantity
+  changes the stockout date, units short and the suggested additional order, not the risk %. Stated in the UI.
+- Alert priority (margin = cover - days to delivery) and health follow the Day 9 rules; they respond smoothly while the Random Forest risk % moves in steps.
+- Projection: 30 days at constant daily demand (mean of the 3-week forecast); an order arriving after d days is added at the start of day d+1.
+  Stockout date = as_of + first shortfall day - 1, the same convention as /insights.
+- Limitations: constant daily demand (no weekday effect or promotion changes); the demand shock is a level change, not a one-off spike;
+  the delay shock extrapolates lead time beyond the training range for long delays; the simulator reads forecasts and open POs from the CSVs.
+- Results (fill from your run):
+  Baseline vs /insights: __ of 40 identical.
+  Demand +20%: priority changed __ (worse __). Delay +3d: changed __ (worse __). Both: changed __ (worse __).
+  Near-threshold products flipped priority under demand +20% & delay +3d: __ of __.

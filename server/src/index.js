@@ -15,6 +15,7 @@ import { notFound, errorHandler } from "./middleware/errorHandler.js";
 import insightsRoutes from "./routes/insights.js";
 import supplierRiskRoutes from "./routes/supplierRisk.js";
 import anomalyRoutes from "./routes/anomalies.js";
+import simulatorRoutes from "./routes/simulator.js";
 
 const app = express();
 
@@ -33,6 +34,7 @@ app.use("/api/purchase-orders", purchaseOrderRoutes);
 app.use("/api/insights", insightsRoutes);
 app.use("/api/supplier-risk", supplierRiskRoutes);
 app.use("/api/anomalies", anomalyRoutes);
+app.use("/api/simulator", simulatorRoutes);
 
 app.use(notFound);
 app.use(errorHandler);

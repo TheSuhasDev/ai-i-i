@@ -30,6 +30,10 @@ export const anomalyService = {
   list: (params = {}) => api.get("/anomalies", { params }),
 };
 
+export const simulatorService = {
+  run: (body) => api.post("/simulator", body),
+};
+
 export const authService = {
   login: (email, password) => api.post("/auth/login", { email, password }),
   me: () => api.get("/auth/me"),

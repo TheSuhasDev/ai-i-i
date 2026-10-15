@@ -59,6 +59,7 @@ function ProductInsight({ code }) {
           <Pill value={d.priority} />
           <Pill value={d.health.status} />
           <span className="badge">{d.classification?.abc_xyz}</span>
+          <Link className="btn small" to={`/simulator?product=${d.product_id}`}>What-if</Link>
         </div>
       </div>
 

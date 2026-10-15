@@ -18,7 +18,7 @@ import SupplierForm from "./pages/SupplierForm";
 import PurchaseOrderList from "./pages/PurchaseOrderList";
 import PurchaseOrderForm from "./pages/PurchaseOrderForm";
 import Anomalies from "./pages/Anomalies";
-
+import Simulator from "./pages/Simulator";
 export default function App() {
   return (
     <Routes>
@@ -39,6 +39,7 @@ export default function App() {
           <Route path="sales/new" element={<SaleForm />} />
           <Route path="suppliers" element={<SupplierList />} />
           <Route path="anomalies" element={<Anomalies />} />
+          <Route path="simulator" element={<Simulator />} />
           <Route path="purchase-orders" element={<PurchaseOrderList />} />
 
           {/* admin and manager only */}

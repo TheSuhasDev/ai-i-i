@@ -8,6 +8,7 @@ from app.routes_forecast import router as forecast_router
 from app.routes_risk import router as risk_router
 from app.routes_insights import router as insights_router
 from app.routes_explain import router as explain_router
+from app.routes_simulate import router as simulate_router
 
 load_dotenv()
 
@@ -25,6 +26,7 @@ app.include_router(forecast_router)
 app.include_router(risk_router)
 app.include_router(insights_router)
 app.include_router(explain_router)
+app.include_router(simulate_router)
 
 @app.get("/health")
 def health():

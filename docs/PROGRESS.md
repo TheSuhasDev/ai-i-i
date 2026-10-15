@@ -108,4 +108,14 @@ Tasks done:
 - Bugs fixed: route/function signature mismatch (TypeError, 502 in Express); `kind` filter overwritten inside the sales loop (list only showed sales spikes)
 Run: cd ml-service; python -m app.anomaly; uvicorn app.main:app --reload --port 8000; cd ../server; npm run dev; cd ../client; npm run dev
 
-## Next: Day 12 - What-if simulator
+## Day 12: What-if simulator - DONE
+Tasks done:
+- ml-service: simulator (demand %, supplier delay, stock, order quantity) with before/after on the same code path as /insights, POST /simulate
+- Express: POST /api/simulator (live stock baseline); client: What-If Simulator page with sliders, comparison table, 30-day projection chart, Create PO
+- Tests: python -m pytest (58 passing); validation: python -m app.simulator
+Run: ml-service: python -m app.simulator (validation); open /simulator in the client
+
+## Next: Day 13 - Model performance page and AI assistant
+- Performance dashboard reading the saved metrics JSON files (MAE, RMSE, MAPE, precision, recall, F1)
+- Chatbot: LLM API call with tool/function calls over inventory data; label generated recommendations separately from stored facts
+- Needs: an Anthropic API key in server/.env (never committed)

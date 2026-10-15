@@ -13,6 +13,7 @@ const links = [
   { to: "/suppliers", label: "Suppliers" },
   { to: "/purchase-orders", label: "Purchase Orders" },
   { to: "/anomalies", label: "Anomalies" },
+  { to: "/simulator", label: "What-If Simulator" },
 ];
 
 export default function Layout() {

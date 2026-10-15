@@ -37,6 +37,7 @@ const mlService = {
   supplierRisk: () => call("/supplier-risk"),
   explain: (body) => call("/explain", { method: "POST", body }),
   anomalies: (params = {}) => call(`/anomalies?${new URLSearchParams(params)}`),
+  simulate: (body) => call("/simulate", { method: "POST", body }),
 };
 
 export default mlService;

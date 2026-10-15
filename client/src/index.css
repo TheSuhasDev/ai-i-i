@@ -126,3 +126,17 @@ ul.plain li { padding: 6px 0; border-bottom: 1px solid #eef0f6; font-size: 14px;
    ul.factors li.raises .bar > div { background: #e03131; }
    ul.factors li.lowers .bar > div { background: #2f9e44; }
    ul.factors p { margin: 6px 0 0; }
+
+     /* day 12: simulator */
+  .sim-layout { display: grid; grid-template-columns: 340px 1fr; gap: 20px; align-items: start; }
+  @media (max-width: 1000px) { .sim-layout { grid-template-columns: 1fr; } }
+  .sim-controls h3 { margin-top: 0; }
+  .slider-row { margin: 16px 0; }
+  .slider-head { display: flex; justify-content: space-between; align-items: center; font-size: 14px; font-weight: 600; }
+  .slider-value input { width: 74px; text-align: right; margin-right: 4px; }
+  .slider-row input[type="range"] { width: 100%; }
+  .presets { display: flex; flex-wrap: wrap; gap: 6px; margin: 8px 0 4px; }
+  table.compare th:nth-child(n+2), table.compare td:nth-child(n+2) { text-align: right; }
+  .delta.bad { color: var(--danger); font-weight: 600; }
+  .delta.good { color: #2b8a3e; font-weight: 600; }
+  .alert.ok { background: #ebfbee; border-color: #b2f2bb; color: #2b8a3e; }
