@@ -16,6 +16,8 @@ import insightsRoutes from "./routes/insights.js";
 import supplierRiskRoutes from "./routes/supplierRisk.js";
 import anomalyRoutes from "./routes/anomalies.js";
 import simulatorRoutes from "./routes/simulator.js";
+import assistantRoutes from "./routes/assistant.js";
+import mlPerformanceRoutes from "./routes/mlPerformance.js";
 
 const app = express();
 
@@ -35,6 +37,8 @@ app.use("/api/insights", insightsRoutes);
 app.use("/api/supplier-risk", supplierRiskRoutes);
 app.use("/api/anomalies", anomalyRoutes);
 app.use("/api/simulator", simulatorRoutes);
+app.use("/api/assistant", assistantRoutes);
+app.use("/api/ml-performance", mlPerformanceRoutes);
 
 app.use(notFound);
 app.use(errorHandler);

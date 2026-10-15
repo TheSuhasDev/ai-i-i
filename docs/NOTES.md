@@ -283,3 +283,25 @@ Known limitations
   Baseline vs /insights: __ of 40 identical.
   Demand +20%: priority changed __ (worse __). Delay +3d: changed __ (worse __). Both: changed __ (worse __).
   Near-threshold products flipped priority under demand +20% & delay +3d: __ of __.
+
+  ## Day 13: Model performance page and AI assistant
+- Performance: ml-service GET /model-performance (app/performance.py) reads baseline/forecast/risk/anomaly metric JSON files and trend_report.csv
+  written by the training scripts; missing files are reported with the command that creates them. Express GET /api/ml-performance; client /performance.
+  Nothing on the page is typed in by hand. All evaluation is on the time-based hold-out (last 6 months).
+- Assistant LLM: any OpenAI-compatible chat completions API with tool calling, configured by LLM_API_KEY, LLM_BASE_URL, LLM_MODEL
+  (tested with a free tier; examples: Groq, Google Gemini OpenAI endpoint, OpenRouter). The client code (services/assistant.js) converts the tool
+  definitions to the OpenAI "function" format, retries once on a 400/5xx (free models sometimes fail to emit a valid tool call), and maps upstream
+  401/403 to 503 so a bad key never logs the user out.
+- Free-tier caveats: weaker tool selection and format-following than larger models, small per-minute token limits (tool results capped by
+  LLM_MAX_RESULT_CHARS, default 7000), prompts may be logged by the provider (data here is synthetic).
+- Facts vs recommendations: the system prompt requires "## Facts" (only statements from tool results) and "## Recommendation" (the model's own advice).
+  The UI shows them in differently coloured blocks plus a "Data used" list of the actual lookups. This separation is enforced by the prompt,
+  not guaranteed: it is a design choice, and the "Data used" list lets the user verify facts.
+- Safety: key only in server/.env; the client sends plain text only (cannot forge tool calls); tools are read-only; no tool exposes users or credentials;
+  tool output is treated as data (prompt rule); 20 questions per 10 minutes per user (in memory); upstream auth errors return 503, never 401.
+  Product names are editable by managers, so prompt injection through data is possible in principle; read-only tools limit the damage.
+- Cost/privacy: API usage is billed separately from claude.ai (set a spend limit in the Claude Console). Tool results (synthetic inventory aggregates) are sent to the API.
+  Model is configurable with ANTHROPIC_MODEL (default claude-sonnet-5-5; claude-haiku-5-5 is cheaper).
+- Limitations: answers depend on the LLM and can still be imperfect; stored insights can be stale until refreshed (the assistant reports computed_at);
+  the in-memory rate limiter resets when the server restarts; the assistant is English only.
+- Results (fill from your run): 5 example questions answered __/5 with the expected lookups (reorder: __, suppliers: __, overstock: __, what-if: __, why critical: __).

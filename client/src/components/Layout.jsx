@@ -14,6 +14,8 @@ const links = [
   { to: "/purchase-orders", label: "Purchase Orders" },
   { to: "/anomalies", label: "Anomalies" },
   { to: "/simulator", label: "What-If Simulator" },
+  { to: "/performance", label: "ML Performance" },
+  { to: "/assistant", label: "AI Assistant" },
 ];
 
 export default function Layout() {

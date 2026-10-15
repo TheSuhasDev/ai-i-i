@@ -8,7 +8,7 @@ import AppError from "../utils/AppError.js";
 const RANK = { Critical: 0, High: 1, Medium: 2, Low: 3 };
 const DAY = 86400000;
 
-async function computeAndStore(product) {
+export async function computeAndStore(product) {
   const inv = await Inventory.findOne({ product: product._id });
   const body = { product_id: product.code };
   if (inv) {

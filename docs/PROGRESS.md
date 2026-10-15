@@ -115,7 +115,16 @@ Tasks done:
 - Tests: python -m pytest (58 passing); validation: python -m app.simulator
 Run: ml-service: python -m app.simulator (validation); open /simulator in the client
 
-## Next: Day 13 - Model performance page and AI assistant
-- Performance dashboard reading the saved metrics JSON files (MAE, RMSE, MAPE, precision, recall, F1)
-- Chatbot: LLM API call with tool/function calls over inventory data; label generated recommendations separately from stored facts
-- Needs: an Anthropic API key in server/.env (never committed)
+## Day 13: Model performance page and AI assistant - DONE
+Tasks done:
+- ML Performance page from the real saved metrics (forecast vs baselines, risk classifier vs rule, anomaly detection, trend agreement, feature importance)
+- AI assistant: tool-calling chatbot over inventory data (10 read-only tools), facts labelled separately from recommendations, "Data used" list
+- ml-service: GET /model-performance, POST /simulate/all; Express: /api/ml-performance, /api/assistant (+ /status)
+- Tests: python -m pytest (63 passing)
+New env vars (server): ANTHROPIC_API_KEY, ANTHROPIC_MODEL (optional)
+
+## Next: Day 14 - Testing, security and deployment
+- Test pass over all 26 checklist items (README feature checklist), fix bugs
+- Rate limiting (express-rate-limit), Helmet, CORS, protected ML endpoints (shared secret between Express and the ML service; the ML service is currently open), no secrets in Git
+- Deploy: frontend (Vercel/Netlify), backend + ML service (Render/Railway), MongoDB Atlas. The ML build must run: python data/generate_data.py, python -m app.train_forecast,
+  python -m app.train_risk, python -m app.anomaly (the *.joblib files are git-ignored). Set ANTHROPIC_API_KEY on the host.

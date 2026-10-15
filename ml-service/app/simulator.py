@@ -207,6 +207,47 @@ def simulate(product_id, demand_pct=0.0, extra_delay_days=0, stock=None, order_q
         ],
     }
 
+def simulate_all(demand_pct=0.0, extra_delay_days=0, live=None, product_ids=None):
+    """
+    Same scenario applied to every product (or to `product_ids`), as compact rows, worst affected first.
+    `live` maps product_id -> {"stock": .., "on_order": ..} (current values sent by Express).
+    """
+    live = live or {}
+    ids = [str(p) for p in product_ids] if product_ids else list(load_series())
+    rows = []
+    for pid in ids:
+        base = live.get(pid) or {}
+        try:
+            s = simulate(pid, demand_pct, extra_delay_days, None, 0.0, base.get("stock"), base.get("on_order"))
+        except ValueError:
+            continue
+        b, a = s["before"], s["after"]
+        rows.append({
+            "product_id": pid, "name": s["name"],
+            "priority_before": b["priority"], "priority_after": a["priority"],
+            "priority_worse": s["flags"]["priority_worse"],
+            "risk_before": b["risk_pct"], "risk_after": a["risk_pct"],
+            "days_of_cover_before": b["days_of_cover"], "days_of_cover_after": a["days_of_cover"],
+            "order_qty_before": b["reorder"]["order_qty"], "order_qty_after": a["reorder"]["order_qty"],
+            "expected_stockout_after": a["expected_stockout_date"],
+        })
+    rows.sort(key=lambda r: (not r["priority_worse"], PRIORITY_RANK[r["priority_after"]], -r["risk_after"]))
+    n = max(len(rows), 1)
+    return {
+        "scenario": {"demand_pct": float(demand_pct), "extra_delay_days": int(extra_delay_days)},
+        "summary": {
+            "n_products": len(rows),
+            "priority_worse": int(sum(r["priority_worse"] for r in rows)),
+            "critical_before": int(sum(r["priority_before"] == "Critical" for r in rows)),
+            "critical_after": int(sum(r["priority_after"] == "Critical" for r in rows)),
+            "avg_risk_before": round(sum(r["risk_before"] for r in rows) / n, 1),
+            "avg_risk_after": round(sum(r["risk_after"] for r in rows) / n, 1),
+            "reorder_units_before": round(sum(r["order_qty_before"] for r in rows)),
+            "reorder_units_after": round(sum(r["order_qty_after"] for r in rows)),
+        },
+        "products": rows,
+    }
+
 
 # ---------------------------------------------------------------- validation
 

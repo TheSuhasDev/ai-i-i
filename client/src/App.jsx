@@ -19,6 +19,9 @@ import PurchaseOrderList from "./pages/PurchaseOrderList";
 import PurchaseOrderForm from "./pages/PurchaseOrderForm";
 import Anomalies from "./pages/Anomalies";
 import Simulator from "./pages/Simulator";
+import ModelPerformance from "./pages/ModelPerformance";
+import Assistant from "./pages/Assistant";
+
 export default function App() {
   return (
     <Routes>
@@ -40,6 +43,8 @@ export default function App() {
           <Route path="suppliers" element={<SupplierList />} />
           <Route path="anomalies" element={<Anomalies />} />
           <Route path="simulator" element={<Simulator />} />
+          <Route path="performance" element={<ModelPerformance />} />
+          <Route path="assistant" element={<Assistant />} />
           <Route path="purchase-orders" element={<PurchaseOrderList />} />
 
           {/* admin and manager only */}

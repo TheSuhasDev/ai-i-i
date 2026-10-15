@@ -34,6 +34,15 @@ export const simulatorService = {
   run: (body) => api.post("/simulator", body),
 };
 
+export const performanceService = {
+  get: () => api.get("/ml-performance"),
+};
+
+export const assistantService = {
+  status: () => api.get("/assistant/status"),
+  ask: (messages) => api.post("/assistant", { messages }, { timeout: 120000 }),
+};
+
 export const authService = {
   login: (email, password) => api.post("/auth/login", { email, password }),
   me: () => api.get("/auth/me"),
