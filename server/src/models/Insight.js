@@ -6,6 +6,7 @@ const insightSchema = new mongoose.Schema(
     product: { type: mongoose.Schema.Types.ObjectId, ref: "Product", required: true, unique: true },
     productCode: { type: String, required: true, index: true },
     asOf: { type: Date, required: true },
+    dataAsOf: { type: Date },
     priority: { type: String, enum: ["Critical", "High", "Medium", "Low"], index: true },
     healthScore: Number,
     healthStatus: { type: String, enum: ["Critical", "Warning", "Healthy"], index: true },

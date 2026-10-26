@@ -10,7 +10,10 @@ async function call(path, { method = "GET", body, timeoutMs = DEFAULT_TIMEOUT_MS
   try {
     const res = await fetch(`${base}${path}`, {
       method,
-      headers: { "Content-Type": "application/json" },
+      headers: {
+        "Content-Type": "application/json",
+        "X-Service-Token": process.env.ML_SERVICE_TOKEN || "",
+      },
       body: body ? JSON.stringify(body) : undefined,
       signal: controller.signal,
     });

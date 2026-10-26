@@ -19,6 +19,7 @@ export const loginSchema = z.object({
 export const supplierCreate = z.object({
   code: z.string().trim().min(1),
   name: z.string().trim().min(2),
+  imageUrl: z.string().trim().url().optional().or(z.literal("")),
   contactEmail: email.optional().or(z.literal("")),
   city: z.string().trim().optional(),
 });
@@ -71,6 +72,7 @@ export const poCreate = z.object({
   qtyReceived: z.coerce.number().int().min(0).optional(),
   unitCost: z.coerce.number().min(0),
   qualityIssue: z.boolean().optional(),
-  status: z.enum(["Pending", "In Transit", "Delivered", "Cancelled"]).optional(),
+  status: z.enum(["Pending", "Approved", "In Transit", "Delivered", "Cancelled"]).optional(),
+  confirmDuplicate: z.boolean().optional(),
 });
 export const poUpdate = poCreate.partial();

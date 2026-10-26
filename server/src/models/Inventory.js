@@ -11,4 +11,11 @@ const inventorySchema = new mongoose.Schema(
   { timestamps: true }
 );
 
+inventorySchema.virtual("onOrder").get(function () {
+  return this.inTransitQty;
+});
+
+inventorySchema.set("toJSON", { virtuals: true });
+inventorySchema.set("toObject", { virtuals: true });
+
 export default mongoose.model("Inventory", inventorySchema);

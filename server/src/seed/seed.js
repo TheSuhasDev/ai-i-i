@@ -13,7 +13,9 @@ import Supplier from "../models/Supplier.js";
 import Product from "../models/Product.js";
 import Inventory from "../models/Inventory.js";
 import Sale from "../models/Sale.js";
-import PurchaseOrder from "../models/PurchaseOrder.js";
+import PurchaseOrder, { syncInTransit } from "../models/PurchaseOrder.js";
+import Insight from "../models/Insight.js";
+import { computeAndStore } from "../controllers/insightsController.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const DATA_DIR = path.resolve(__dirname, "../../../ml-service/data");
@@ -83,7 +85,7 @@ async function main() {
 
   await mongoose.connect(process.env.MONGO_URI);
   console.log("MongoDB connected, clearing old data...");
-  await Promise.all([User, Supplier, Product, Inventory, Sale, PurchaseOrder].map((M) => M.deleteMany({})));
+  await Promise.all([User, Supplier, Product, Inventory, Sale, PurchaseOrder, Insight].map((M) => M.deleteMany({})));
 
   await User.insertMany(users);
   await Supplier.insertMany(suppliers);
@@ -91,6 +93,13 @@ async function main() {
   await Inventory.insertMany(inventory);
   await insertBatches(Sale, sales);
   await PurchaseOrder.insertMany(purchaseOrders);
+  await Promise.all(products.map((p) => syncInTransit(p._id)));
+
+  console.log("Computing initial insights for all products...");
+  for (let i = 0; i < products.length; i += 5) {
+    const batch = products.slice(i, i + 5);
+    await Promise.allSettled(batch.map((p) => computeAndStore(p)));
+  }
 
   console.log("Seed complete.");
   await mongoose.disconnect();

@@ -44,9 +44,16 @@ app.use(notFound);
 app.use(errorHandler);
 
 const PORT = process.env.PORT || 5000;
+const jwtSecret = String(process.env.JWT_SECRET || "").trim();
+const knownJwtPlaceholders = new Set([
+  "secret",
+  "changeme",
+  "your_jwt_secret",
+  "change_me_to_a_long_random_string",
+]);
 
-if (!process.env.JWT_SECRET) {
-  console.error("JWT_SECRET is missing in .env");
+if (jwtSecret.length < 32 || knownJwtPlaceholders.has(jwtSecret.toLowerCase())) {
+  console.error("JWT_SECRET must be at least 32 characters and must not be a known placeholder");
   process.exit(1);
 }
 

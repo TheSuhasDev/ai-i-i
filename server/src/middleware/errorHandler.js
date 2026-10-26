@@ -32,13 +32,11 @@ export function errorHandler(err, req, res, next) {
     message = "Invalid JSON body";
   }
 
-  const isProd = process.env.NODE_ENV === "production";
   if (status >= 500) console.error(err);
 
   res.status(status).json({
     success: false,
-    message: status >= 500 && isProd ? "Internal server error" : message,
-    ...(details && { details }),
-    ...(!isProd && status >= 500 && { stack: err.stack }),
+    message: status >= 500 ? "Internal server error" : message,
+    ...(status < 500 && details && { details }),
   });
 }

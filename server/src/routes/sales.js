@@ -1,7 +1,14 @@
+import { Router } from "express";
 import Sale from "../models/Sale.js";
+import AuditLog from "../models/AuditLog.js";
 import { makeCrud } from "../controllers/crudFactory.js";
-import { crudRouter } from "./crudRouter.js";
+import { protect, authorize } from "../middleware/auth.js";
+import { validate } from "../middleware/validate.js";
 import { saleCreate, saleUpdate } from "../validators/schemas.js";
+import AppError from "../utils/AppError.js";
+import { asyncHandler } from "../utils/asyncHandler.js";
+
+const ADMIN_ONLY = ["admin"];
 
 const crud = makeCrud({
   Model: Sale,
@@ -30,8 +37,73 @@ const crud = makeCrud({
   },
 });
 
-export default crudRouter(crud, {
-  createSchema: saleCreate,
-  updateSchema: saleUpdate,
-  createRoles: ["admin", "manager", "staff"],
-});
+// Wrap CRUD handlers with audit logging for writes
+function auditCreate(handler) {
+  return asyncHandler(async (req, res, next) => {
+    // Call the original handler, capture the response via a proxy
+    const originalJson = res.json.bind(res);
+    let captured;
+    res.json = (body) => { captured = body; return originalJson(body); };
+    await handler(req, res, next);
+    if (captured?.success && captured?.data) {
+      AuditLog.create({
+        user: req.user._id,
+        action: "create",
+        collection: "sales",
+        documentId: captured.data._id,
+        before: null,
+        after: { unitsSold: captured.data.unitsSold, unitPrice: captured.data.unitPrice, revenue: captured.data.revenue, date: captured.data.date },
+      }).catch((e) => console.error("AuditLog create failed:", e));
+    }
+  });
+}
+
+function auditUpdate(handler) {
+  return asyncHandler(async (req, res, next) => {
+    const existing = await Sale.findById(req.params.id).lean();
+    if (!existing) throw new AppError("Sale not found", 404);
+    const before = { unitsSold: existing.unitsSold, unitPrice: existing.unitPrice, revenue: existing.revenue, date: existing.date };
+    const originalJson = res.json.bind(res);
+    let captured;
+    res.json = (body) => { captured = body; return originalJson(body); };
+    await handler(req, res, next);
+    if (captured?.success && captured?.data) {
+      AuditLog.create({
+        user: req.user._id,
+        action: "update",
+        collection: "sales",
+        documentId: captured.data._id,
+        before,
+        after: { unitsSold: captured.data.unitsSold, unitPrice: captured.data.unitPrice, revenue: captured.data.revenue, date: captured.data.date },
+      }).catch((e) => console.error("AuditLog update failed:", e));
+    }
+  });
+}
+
+function auditDelete(handler) {
+  return asyncHandler(async (req, res, next) => {
+    const existing = await Sale.findById(req.params.id).lean();
+    if (!existing) throw new AppError("Sale not found", 404);
+    const before = { unitsSold: existing.unitsSold, unitPrice: existing.unitPrice, revenue: existing.revenue, date: existing.date };
+    const docId = existing._id;
+    await handler(req, res, next);
+    AuditLog.create({
+      user: req.user._id,
+      action: "delete",
+      collection: "sales",
+      documentId: docId,
+      before,
+      after: null,
+    }).catch((e) => console.error("AuditLog delete failed:", e));
+  });
+}
+
+const router = Router();
+router.use(protect);
+router.get("/", crud.list);
+router.get("/:id", crud.getOne);
+router.post("/", authorize(...ADMIN_ONLY), validate(saleCreate), auditCreate(crud.create));
+router.put("/:id", authorize(...ADMIN_ONLY), validate(saleUpdate), auditUpdate(crud.update));
+router.delete("/:id", authorize(...ADMIN_ONLY), auditDelete(crud.remove));
+
+export default router;

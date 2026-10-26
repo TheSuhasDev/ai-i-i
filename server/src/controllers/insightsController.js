@@ -1,19 +1,26 @@
 import Product from "../models/Product.js";
+import { syncInTransit } from "../models/PurchaseOrder.js";
 import Inventory from "../models/Inventory.js";
 import Insight from "../models/Insight.js";
 import Sale from "../models/Sale.js";
 import mlService from "../services/mlService.js";
+import { getOpenPurchaseOrderSummary } from "../services/openPurchaseOrders.js";
 import AppError from "../utils/AppError.js";
 
 const RANK = { Critical: 0, High: 1, Medium: 2, Low: 3 };
 const DAY = 86400000;
 
 export async function computeAndStore(product) {
+  await syncInTransit(product._id);
   const inv = await Inventory.findOne({ product: product._id });
+  const purchaseOrders = await getOpenPurchaseOrderSummary(product._id);
   const body = { product_id: product.code };
   if (inv) {
     body.stock = inv.currentStock;
-    body.on_order = inv.inTransitQty;
+  }
+  body.on_order = purchaseOrders.onOrder;
+  if (purchaseOrders.expectedDeliveryDate) {
+    body.expected_delivery_date = purchaseOrders.expectedDeliveryDate.toISOString().slice(0, 10);
   }
   const data = await mlService.insights(body);
   return Insight.findOneAndUpdate(
@@ -21,6 +28,7 @@ export async function computeAndStore(product) {
     {
       productCode: product.code,
       asOf: data.as_of,
+      dataAsOf: data.data_as_of || data.inputs?.data_as_of || null,
       priority: data.priority,
       healthScore: data.health.score,
       healthStatus: data.health.status,
@@ -52,7 +60,7 @@ export async function listInsights(req, res) {
   let query = Insight.find(filter);
   if (req.query.full !== "1") {
     query = query.select(
-      "productCode priority healthScore healthStatus riskPct orderQty daysOfCover marginDays computedAt data.name data.classification"
+      "productCode asOf dataAsOf priority healthScore healthStatus riskPct orderQty daysOfCover marginDays computedAt data.name data.as_of data.data_as_of data.inputs.data_as_of data.inputs.data_age_days data.classification data.trend.pattern data.trend.trend data.trend.yoy_change_pct data.trend.monthly_index data.trend.weekly_series"
     );
   }
   const docs = await query.lean();
@@ -98,7 +106,10 @@ export async function refreshAll(req, res) {
     const settled = await Promise.allSettled(batch.map(computeAndStore));
     settled.forEach((s, j) => {
       if (s.status === "fulfilled") result.ok += 1;
-      else result.failed.push({ code: batch[j].code, error: s.reason?.message });
+      else {
+        console.error(`Insight refresh failed for ${batch[j].code}:`, s.reason);
+        result.failed.push({ code: batch[j].code, error: "INSIGHT_COMPUTE_FAILED" });
+      }
     });
   }
   res.json({ success: true, data: result });

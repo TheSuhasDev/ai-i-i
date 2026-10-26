@@ -5,6 +5,7 @@ import { validate } from "../middleware/validate.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
 import Product from "../models/Product.js";
 import Inventory from "../models/Inventory.js";
+import { getOpenPurchaseOrderSummary } from "../services/openPurchaseOrders.js";
 import mlService from "../services/mlService.js";
 import AppError from "../utils/AppError.js";
 
@@ -29,6 +30,7 @@ router.post(
     if (!product) throw new AppError(`Unknown product ${productCode}`, 404);
 
     const inv = await Inventory.findOne({ product: product._id });
+    const purchaseOrders = await getOpenPurchaseOrderSummary(product._id);
     const body = {
       product_id: product.code,
       demand_pct: demandPct,
@@ -37,7 +39,10 @@ router.post(
     };
     if (inv) {
       body.base_stock = inv.currentStock;
-      body.base_on_order = inv.inTransitQty;
+    }
+    body.base_on_order = purchaseOrders.onOrder;
+    if (purchaseOrders.expectedDeliveryDate) {
+      body.base_expected_delivery_date = purchaseOrders.expectedDeliveryDate.toISOString().slice(0, 10);
     }
     if (stock !== undefined) body.stock = stock;
 
