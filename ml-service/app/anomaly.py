@@ -58,6 +58,7 @@ def behaviour_features(f):
         "stock_blip": blip.clip(0, 50),
         "expected_units": mean28,
         "stock_gap": e,
+        "prior_stock": s.shift(1),
     })
 
 
@@ -184,7 +185,7 @@ def recent_anomalies(days=90, product_id=None, limit=200, kind=None):
     if len(s):
         s["score"] = anomaly_scores(bundle["sales_model"], s[SALES_FEATS])
         for r in s[s["score"] >= bundle["sales_threshold"]].itertuples():
-            if r.units_sold == 0 and r.stock_on_hand <= 0:
+            if r.units_sold == 0 and (r.stock_on_hand <= 0 or (hasattr(r, "prior_stock") and r.prior_stock <= 0)):
                 continue  # no sales because it was out of stock
             if r.units_sold == 0:
                 atype = "zero_sales"

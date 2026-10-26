@@ -39,3 +39,12 @@ def test_sales_features_do_not_look_ahead():
     after = behaviour_features(altered)
     cols = ["sales_ratio", "sales_z", "zero_surprise"]
     assert np.allclose(base.loc[70, cols].astype(float), after.loc[70, cols].astype(float))
+
+
+def test_zero_sales_suppressed_when_out_of_stock():
+    from app.anomaly import recent_anomalies
+    res = recent_anomalies(days=730, limit=2000)
+    for a in res["anomalies"]:
+        if a["type"] == "zero_sales":
+            assert "were in stock" in a["message"]
+            assert " 0 units were in stock" not in a["message"]

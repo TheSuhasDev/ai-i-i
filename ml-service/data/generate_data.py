@@ -14,7 +14,7 @@ rng = np.random.default_rng(SEED)
 OUT = os.path.dirname(os.path.abspath(__file__))
 
 N_DAYS = 730
-END_DATE = date(2026, 10, 11)
+END_DATE = date.today()
 START_DATE = END_DATE - timedelta(days=N_DAYS - 1)
 DATES = pd.date_range(START_DATE, END_DATE, freq="D")
 DOW = DATES.dayofweek.values          # Mon=0 ... Sun=6
@@ -97,7 +97,7 @@ B_NAMES = {"Table Fan", "Bluetooth Speaker", "Webcam 1080p", "Laptop Backpack", 
 def _factor(n):
     return 1.30 if n in A_NAMES else (0.88 if n in B_NAMES else 0.78)
 P = [(a[0], a[1], int(round(a[2] * _factor(a[0]) / 5) * 5)) + tuple(a[3:]) for a in P]
-MARGIN = {"Bluetooth Earbuds": -4.0, "Gaming Headset": 1.0, "Smartwatch": 1.5, "WiFi Range Extender": 1.0,
+MARGIN = {"Bluetooth Earbuds": -4.0, "Gaming Headset": 0.5, "Smartwatch": 1.5, "WiFi Range Extender": 1.0,
           "Tempered Glass": 0.5, "LED Strip Lights": 1.5}
 
 OUT_OF_STOCK = {"Power Bank 10000mAh", "Game Controller"}
@@ -109,7 +109,7 @@ SEASON_RAW = {
     "college": [0.9, 0.9, 0.9, 0.9, 1.2, 1.55, 1.5, 1.2, 0.9, 0.9, 0.9, 0.85],
     "summer":  [0.5, 0.6, 1.2, 1.7, 1.8, 1.5, 0.9, 0.7, 0.6, 0.5, 0.45, 0.45],
 }
-NOISE_CV = {"X": 0.14, "Y": 0.42, "Z": 0.90}
+NOISE_CV = {"X": 0.14, "Y": 0.42, "Z": 0.95}
 NOISE_LABEL = {"X": "low", "Y": "medium", "Z": "high"}
 
 
@@ -151,11 +151,11 @@ products, demand, promo_flags, meta = [], {}, {}, {}
 for i, (name, cat, price, base, arch, season, xyz, lt, sups, scen, driver, open_po) in enumerate(P, start=1):
     pid = f"P{i:03d}"
     if arch == "increasing":
-        slope = rng.uniform(0.60, 0.95)
+        slope = rng.uniform(0.35, 0.80)
     elif arch == "decreasing":
-        slope = -rng.uniform(0.50, 0.65)
+        slope = -rng.uniform(0.30, 0.60)
     elif arch == "trend_seasonal":
-        slope = rng.uniform(0.45, 0.60) * (-1 if name == "Game Controller" else 1)
+        slope = rng.uniform(0.35, 0.55) * (-1 if name == "Game Controller" else 1)
     else:
         slope = 0.0
     strength = 1.0 if arch == "seasonal" else (0.6 if arch == "trend_seasonal" else 0.0)

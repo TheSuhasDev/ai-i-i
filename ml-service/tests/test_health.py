@@ -22,7 +22,7 @@ def test_health_status_thresholds():
 
 
 def test_alert_priority_thresholds():
-    got = [alert_priority(x) for x in (-0.1, 0, 4.9, 5, 14.9, 15, None)]
+    got = [alert_priority(x) for x in (-0.1, 0, 4.9, 5, 9.9, 10, None)]
     assert got == ["Critical", "High", "High", "Medium", "Medium", "Low", "Low"]
 
 

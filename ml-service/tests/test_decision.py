@@ -42,6 +42,13 @@ def test_reorder_counts_open_orders():
     assert base["order_qty"] == 60 and open_po["order_qty"] == 0
 
 
+def test_open_po_covering_need_has_zero_suggested_qty():
+    # Power Bank (P010) scenario: target need ~ 422 units, stock 0, open PO 422
+    r = smart_reorder(forecast_ltd=320, lead_time_days=7, sigma_daily=20, stock=0, on_order=422)
+    assert r["order_qty"] == 0
+    assert r["needs_reorder"] is False
+
+
 def test_reorder_zero_when_stock_is_enough():
     r = smart_reorder(forecast_ltd=100, lead_time_days=5, sigma_daily=3, stock=500)
     assert r["order_qty"] == 0 and not r["needs_reorder"]
@@ -88,3 +95,10 @@ def test_supplier_scores_ignore_undelivered():
     a = supplier_scores(good)
     b = supplier_scores(pd.concat([good, pending], ignore_index=True))
     assert a.loc["S1", "reliability_score"] == b.loc["S1", "reliability_score"]
+
+
+def test_moq_rounding():
+    # If unrounded need is 9 units, minimum order quantity enforces at least 10 units
+    r = smart_reorder(forecast_ltd=10, lead_time_days=5, sigma_daily=0, stock=1, moq=10)
+    assert r["order_qty"] == 10
+    assert r["needs_reorder"] is True

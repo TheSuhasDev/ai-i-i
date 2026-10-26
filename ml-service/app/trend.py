@@ -54,12 +54,14 @@ def analyze_series(weekly):
         r, p = stats.pearsonr(a, b)
     seasonal = bool(r >= SEASONAL_R and p < 0.05)
 
+    level = y.mean()
+    adj = yd - yd.mean() + level
+    months = (w["week_start"] + pd.Timedelta(days=3)).dt.month.to_numpy()
+    monthly = pd.Series(adj).groupby(months).mean().reindex(range(1, 13))
+    monthly_index = [round(float(value / level), 3) if level > 0 else 1.0 for value in monthly]
+
     peak_month, peak_uplift = None, None
     if seasonal:
-        level = y.mean()
-        adj = yd - yd.mean() + level
-        months = (w["week_start"] + pd.Timedelta(days=3)).dt.month.to_numpy()
-        monthly = pd.Series(adj).groupby(months).mean()
         peak_month = calendar.month_abbr[int(monthly.idxmax())]
         peak_uplift = round(float((monthly.max() / level - 1) * 100), 1) if level > 0 else None
 
@@ -79,6 +81,11 @@ def analyze_series(weekly):
         "seasonal_strength": round(float(r), 2),
         "peak_month": peak_month,
         "peak_uplift_pct": peak_uplift,
+        "monthly_index": monthly_index,
+        "weekly_series": [
+            {"week_start": row.week_start.date().isoformat(), "units": float(row.units)}
+            for row in w.itertuples()
+        ],
         "pattern": pattern,
         "window": {"start": w["week_start"].iloc[0].date().isoformat(),
                    "end": (w["week_start"].iloc[-1] + pd.Timedelta(days=6)).date().isoformat(),

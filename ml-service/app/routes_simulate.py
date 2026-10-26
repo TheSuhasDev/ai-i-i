@@ -1,3 +1,4 @@
+from datetime import date
 from typing import Dict, List, Optional
 
 from fastapi import APIRouter, HTTPException
@@ -17,6 +18,7 @@ class SimulateRequest(BaseModel):
     order_qty: float = Field(default=0, ge=0, description="New order placed today")
     base_stock: Optional[float] = Field(default=None, ge=0, description="Live current stock (sent by Express)")
     base_on_order: Optional[float] = Field(default=None, ge=0, description="Live quantity on order (sent by Express)")
+    base_expected_delivery_date: Optional[date] = None
 
 
 class SimulateAllRequest(BaseModel):
@@ -30,7 +32,7 @@ class SimulateAllRequest(BaseModel):
 def simulate_endpoint(req: SimulateRequest):
     try:
         return simulate(req.product_id, req.demand_pct, req.extra_delay_days, req.stock, req.order_qty,
-                        req.base_stock, req.base_on_order)
+                        req.base_stock, req.base_on_order, req.base_expected_delivery_date)
     except FileNotFoundError:
         raise HTTPException(status_code=503, detail=NOT_TRAINED)
     except KeyError:

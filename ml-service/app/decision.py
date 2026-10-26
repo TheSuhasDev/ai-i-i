@@ -55,7 +55,8 @@ def safety_stock(sigma_daily, lead_time_days, mean_daily=0.0, lt_std_days=0.0, z
 
 
 def smart_reorder(forecast_ltd, lead_time_days, sigma_daily, stock, on_order=0.0,
-                  reliability=100.0, avg_delay_days=0.0, lt_std_days=0.0, z=Z_SERVICE):
+                  reliability=100.0, avg_delay_days=0.0, lt_std_days=0.0, z=Z_SERVICE,
+                  moq=10):
     """forecast_ltd = forecast demand over the nominal lead time. reliability = supplier score 0-100."""
     if lead_time_days <= 0:
         raise ValueError("lead_time_days must be positive")
@@ -67,7 +68,8 @@ def smart_reorder(forecast_ltd, lead_time_days, sigma_daily, stock, on_order=0.0
     buffer = ss * (1 + RELIABILITY_BUFFER * (1 - reliability / 100))
     target = demand + buffer
     position = float(stock) + float(on_order)
-    qty = max(0, math.ceil(target - position - 1e-9))
+    raw_qty = max(0, math.ceil(target - position - 1e-9))
+    qty = max(raw_qty, moq) if raw_qty > 0 else 0
     return {
         "order_qty": int(qty),
         "needs_reorder": qty > 0,
@@ -166,6 +168,7 @@ def load_decision_inputs():
         ids = _need(products, ["supplier_ids", "supplier"], "supplier", "products.csv")
         # a product can list several suppliers; the first one is treated as its primary supplier
         products["supplier_id"] = products[ids].astype(str).str.findall(r"[^\s,;|\[\]'\"]+").str[0]
+        products["all_supplier_ids"] = products[ids].astype(str).str.findall(r"[^\s,;|\[\]'\"]+")
     if "supplier_id" not in pos.columns:
         pos = pos.merge(products[["product_id", "supplier_id"]], on="product_id", how="left")
     return products, pos, price_col
@@ -179,6 +182,7 @@ def product_stats(series, products, price_col):
         u = f["units_sold"].astype(float)
         weekly = pd.Series(u.to_numpy(), index=pd.DatetimeIndex(f["date"])).resample("W-SUN").sum().tail(52)
         mean_w = weekly.mean()
+        all_sups = list(meta.loc[pid, "all_supplier_ids"]) if "all_supplier_ids" in meta.columns else [str(meta.loc[pid, "supplier_id"])]
         rows.append({
             "product_id": pid, "name": s["name"], "lead_time_days": s["lt"],
             "stock": float(f["stock_on_hand"].iloc[-1]),
@@ -187,6 +191,7 @@ def product_stats(series, products, price_col):
             "weekly_cv": float(weekly.std(ddof=1) / mean_w) if mean_w > 0 else float("inf"),
             "annual_value": float(u.tail(365).sum() * float(meta.loc[pid, price_col])),
             "supplier_id": str(meta.loc[pid, "supplier_id"]),
+            "supplier_ids": all_sups,
         })
     df = pd.DataFrame(rows)
     df["abc"] = abc_classify(df["annual_value"].set_axis(df["product_id"])).to_numpy()

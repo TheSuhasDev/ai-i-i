@@ -35,6 +35,23 @@ def test_seasonal_pattern_is_detected_and_is_not_a_trend():
     assert r["trend"] == "stable"       # the year-over-year difference cancels the seasonal cycle
 
 
+def test_monthly_index_matches_seasonal_peak():
+    rng = np.random.default_rng(4)
+    t = np.arange(104)
+    r = analyze_series(weekly(100 + 30 * np.sin(2 * np.pi * t / 52) + rng.normal(0, 8, 104)))
+    month = pd.Timestamp(f"2026-{r['peak_month']}-01").month
+    assert len(r["monthly_index"]) == 12
+    assert r["monthly_index"].index(max(r["monthly_index"])) == month - 1
+    assert len(r["weekly_series"]) == 104
+    assert set(r["weekly_series"][0]) == {"week_start", "units"}
+
+
+def test_flat_series_monthly_index_is_average():
+    r = analyze_series(weekly(np.ones(104)))
+    assert len(r["monthly_index"]) == 12
+    assert r["monthly_index"] == pytest.approx([1.0] * 12)
+
+
 def test_noise_is_rarely_flagged_seasonal():
     flagged = 0
     for seed in range(30):

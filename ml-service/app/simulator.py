@@ -17,7 +17,7 @@ Notes
   * Daily demand = mean of the 3-week forecast, held constant over the 30-day projection (no weekday effect).
   * Dates follow the /insights convention: expected stockout = as_of + whole days of cover.
 """
-from datetime import timedelta
+from datetime import date, timedelta
 
 import numpy as np
 import pandas as pd
@@ -25,7 +25,7 @@ import pandas as pd
 from app.decision import smart_reorder
 from app.forecasting import forecast_product, lead_time_demand
 from app.health import PRIORITY_RANK, alert_priority, health_score
-from app.insights import NEUTRAL_SUPPLIER, _open_pos, _tables
+from app.insights import NEUTRAL_SUPPLIER, _open_pos, _tables, today
 from app.risk import RFEATS, apply_calibration, load_bundle, load_series, product_features, risk_level
 
 HORIZON = 30
@@ -97,6 +97,8 @@ def _state(c, stock, on_order, new_order, factor, extra):
         arrivals.append((lt + delay + extra, new_order))
     days_deliv = min(w for w, _ in arrivals) if arrivals else lt + delay + extra
     margin = None if cover is None else round(cover - days_deliv, 1)
+    if margin is not None and abs(margin) < 0.05:
+        margin = 0.0
     prio = alert_priority(margin)
 
     proj = project_stock(stock, daily, arrivals)
@@ -150,7 +152,7 @@ def _summary(b, a, neutral):
 
 
 def simulate(product_id, demand_pct=0.0, extra_delay_days=0, stock=None, order_qty=0.0,
-             base_stock=None, base_on_order=None):
+             base_stock=None, base_on_order=None, base_expected_delivery_date=None):
     pid = str(product_id)
     stats, sup = _tables()
     row = stats.get(pid)
@@ -167,6 +169,11 @@ def simulate(product_id, demand_pct=0.0, extra_delay_days=0, stock=None, order_q
     sup_id = str(row["supplier_id"])
     sc = sup.get(sup_id, NEUTRAL_SUPPLIER)
     po = _open_pos().get(pid)
+    expected_date = base_expected_delivery_date or (po["date"] if po else None)
+    if isinstance(expected_date, str):
+        expected_date = date.fromisoformat(expected_date)
+    if expected_date:
+        po = {**(po or {}), "date": expected_date}
     weekly = [w["forecast"] for w in fc["weeks"]]
 
     cur = float(frame["stock_on_hand"].iloc[-1]) if base_stock is None else float(base_stock)
@@ -174,7 +181,7 @@ def simulate(product_id, demand_pct=0.0, extra_delay_days=0, stock=None, order_q
     ctx = {
         "frame": frame, "lt": int(row["lead_time_days"]), "delay": float(sc["avg_delay_days"]), "sc": sc,
         "sigma": float(row["sigma_daily_60"]), "weekly_cv": float(row["weekly_cv"]), "weekly": weekly,
-        "daily": float(np.mean(weekly)) / 7, "po": po, "as_of": frame["date"].iloc[-1].date(),
+        "daily": float(np.mean(weekly)) / 7, "po": po, "as_of": today(),
     }
 
     scen_stock = cur if stock is None else float(stock)
@@ -218,7 +225,8 @@ def simulate_all(demand_pct=0.0, extra_delay_days=0, live=None, product_ids=None
     for pid in ids:
         base = live.get(pid) or {}
         try:
-            s = simulate(pid, demand_pct, extra_delay_days, None, 0.0, base.get("stock"), base.get("on_order"))
+            s = simulate(pid, demand_pct, extra_delay_days, None, 0.0, base.get("stock"), base.get("on_order"),
+                         base.get("expected_delivery_date"))
         except ValueError:
             continue
         b, a = s["before"], s["after"]

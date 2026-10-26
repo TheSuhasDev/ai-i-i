@@ -1,41 +1,41 @@
 product_id,name,archetype,seasonality,pattern,yoy_change_pct,trend_z,seasonal_strength,trend_ok,seasonal_ok
-P001,USB Hub 4-Port,stable,none,stable,-5.0,-1.57,0.0,True,True
-P002,Mechanical Keyboard,stable,none,stable,2.7,0.9,0.19,True,True
-P003,Wireless Mouse,increasing,none,increasing,47.3,6.59,0.04,True,True
-P004,Webcam 1080p,increasing,none,increasing,54.5,7.1,0.03,True,True
-P005,Laptop Stand,increasing,none,increasing,52.0,11.17,-0.11,True,True
-P006,External HDD 1TB,decreasing,none,decreasing,-19.3,-4.85,-0.13,True,True
-P007,USB Flash Drive 64GB,decreasing,none,decreasing,-23.3,-3.14,0.07,True,True
-P008,Laptop Backpack,trend_seasonal,college,increasing + seasonal,22.4,5.61,0.35,True,True
-P009,Phone Charger 20W,stable,none,stable,-1.3,-0.38,0.01,True,True
-P010,Power Bank 10000mAh,seasonal,festive,seasonal,-2.9,-0.64,0.49,True,True
-P011,Bluetooth Earbuds,trend_seasonal,festive,increasing,34.5,3.53,-0.12,True,False
-P012,Wired Earphones,decreasing,none,decreasing,-25.4,-8.93,-0.05,True,True
-P013,Bluetooth Speaker,seasonal,festive,seasonal,-4.4,-1.07,0.58,True,True
-P014,Smartwatch,seasonal,festive,stable,-14.3,-1.91,0.07,True,False
-P015,Phone Case,seasonal,festive,stable,-7.0,-0.91,0.22,True,False
-P016,Tempered Glass,stable,none,stable,-4.3,-1.42,-0.18,True,True
-P017,Table Fan,seasonal,summer,seasonal,2.2,0.47,0.83,True,True
-P018,Pedestal Fan,seasonal,summer,seasonal,-4.8,-1.2,0.89,True,True
-P019,Air Cooler,seasonal,summer,seasonal,-11.3,-1.41,0.65,True,True
-P020,Electric Kettle,stable,none,stable,4.4,1.42,0.04,True,True
-P021,Steam Iron,stable,none,stable,2.0,0.57,-0.01,True,True
-P022,Mixer Grinder,increasing,none,increasing,49.8,5.47,0.06,True,True
-P023,Notebook 200 Pages,seasonal,college,seasonal,5.0,1.83,0.65,True,True
-P024,A4 Paper Ream,stable,none,stable,0.8,0.24,-0.07,True,True
-P025,Ball Pens Pack,decreasing,none,decreasing,-24.7,-9.4,-0.05,True,True
-P026,Highlighter Set,stable,none,stable,14.2,2.75,0.04,True,True
-P027,Scientific Calculator,seasonal,college,stable,2.6,0.31,-0.03,True,False
-P028,Geometry Box,seasonal,college,stable,-1.5,-0.19,0.12,True,False
-P029,File Folders,stable,none,stable,7.3,1.12,0.01,True,True
-P030,Whiteboard Markers,decreasing,none,decreasing,-16.2,-4.0,0.04,True,True
-P031,WiFi Router AC1200,increasing,none,increasing,33.5,6.51,-0.2,True,True
-P032,Ethernet Cable 5m,stable,none,stable,1.3,0.38,-0.04,True,True
-P033,WiFi Range Extender,stable,none,stable,6.8,1.22,0.03,True,True
-P034,USB WiFi Adapter,stable,none,stable,8.0,0.98,-0.11,True,True
-P035,Network Switch 8-Port,increasing,none,increasing,41.0,8.31,0.3,True,True
-P036,Gaming Mouse,increasing,none,increasing,38.8,4.41,0.16,True,True
-P037,Gaming Headset,trend_seasonal,festive,increasing + seasonal,34.1,9.5,0.48,True,True
-P038,Mousepad XL,increasing,none,increasing,43.0,9.26,-0.06,True,True
-P039,Game Controller,trend_seasonal,festive,decreasing,-22.8,-3.46,0.15,True,False
-P040,LED Strip Lights,trend_seasonal,festive,increasing + seasonal,41.4,9.9,0.45,True,True
+P001,USB Hub 4-Port,stable,none,stable,-4.5,-1.58,0.06,True,True
+P002,Mechanical Keyboard,stable,none,stable,2.2,0.78,0.21,True,True
+P003,Wireless Mouse,increasing,none,increasing,35.5,6.6,-0.03,True,True
+P004,Webcam 1080p,increasing,none,increasing,56.1,5.86,0.25,True,True
+P005,Laptop Stand,increasing,none,increasing,45.2,11.89,0.03,True,True
+P006,External HDD 1TB,decreasing,none,stable,-14.6,-3.88,0.02,False,True
+P007,USB Flash Drive 64GB,decreasing,none,decreasing,-22.0,-3.28,0.04,True,True
+P008,Laptop Backpack,trend_seasonal,college,increasing + seasonal,21.5,8.31,0.74,True,True
+P009,Phone Charger 20W,stable,none,stable,-1.9,-0.62,-0.0,True,True
+P010,Power Bank 10000mAh,seasonal,festive,seasonal,-2.1,-0.55,0.54,True,True
+P011,Bluetooth Earbuds,trend_seasonal,festive,stable,14.2,1.59,-0.06,False,False
+P012,Wired Earphones,decreasing,none,stable,-10.8,-3.71,0.07,False,True
+P013,Bluetooth Speaker,seasonal,festive,seasonal,7.3,1.64,0.62,True,True
+P014,Smartwatch,seasonal,festive,stable,-1.1,-0.14,0.1,True,False
+P015,Phone Case,seasonal,festive,stable,3.1,0.43,0.18,True,False
+P016,Tempered Glass,stable,none,stable,4.4,1.87,0.18,True,True
+P017,Table Fan,seasonal,summer,seasonal,-0.2,-0.04,0.8,True,True
+P018,Pedestal Fan,seasonal,summer,seasonal,-1.6,-0.36,0.84,True,True
+P019,Air Cooler,seasonal,summer,decreasing + seasonal,-22.7,-3.58,0.81,False,True
+P020,Electric Kettle,stable,none,seasonal,0.4,0.16,0.59,True,False
+P021,Steam Iron,stable,none,stable,8.1,2.71,0.05,True,True
+P022,Mixer Grinder,increasing,none,increasing,40.8,3.69,-0.16,True,True
+P023,Notebook 200 Pages,seasonal,college,seasonal,-3.3,-0.89,0.71,True,True
+P024,A4 Paper Ream,stable,none,stable,2.1,0.7,0.15,True,True
+P025,Ball Pens Pack,decreasing,none,decreasing,-26.8,-9.53,-0.05,True,True
+P026,Highlighter Set,stable,none,stable,8.5,1.35,-0.17,True,True
+P027,Scientific Calculator,seasonal,college,stable,0.5,0.06,0.13,True,False
+P028,Geometry Box,seasonal,college,stable,1.6,0.19,0.1,True,False
+P029,File Folders,stable,none,stable,11.5,1.46,0.12,True,True
+P030,Whiteboard Markers,decreasing,none,decreasing,-17.9,-4.47,-0.03,True,True
+P031,WiFi Router AC1200,increasing,none,increasing,24.3,7.47,0.19,True,True
+P032,Ethernet Cable 5m,stable,none,stable,-2.5,-0.71,-0.13,True,True
+P033,WiFi Range Extender,stable,none,stable,6.3,1.3,-0.12,True,True
+P034,USB WiFi Adapter,stable,none,stable,10.7,1.53,0.17,True,True
+P035,Network Switch 8-Port,increasing,none,increasing,40.1,8.27,0.17,True,True
+P036,Gaming Mouse,increasing,none,stable,14.2,1.7,-0.04,False,True
+P037,Gaming Headset,trend_seasonal,festive,increasing + seasonal,21.9,6.39,0.44,True,True
+P038,Mousepad XL,increasing,none,increasing,30.8,8.08,-0.28,True,True
+P039,Game Controller,trend_seasonal,festive,decreasing,-18.9,-2.07,0.04,True,False
+P040,LED Strip Lights,trend_seasonal,festive,increasing,24.9,4.02,0.1,True,False

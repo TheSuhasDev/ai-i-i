@@ -51,4 +51,4 @@ def health_score(stock_ratio, days_of_cover, risk_pct, supplier_score, weekly_cv
 def alert_priority(margin_days):
     if margin_days is None:
         return "Low"
-    return "Critical" if margin_days < 0 else "High" if margin_days < 5 else "Medium" if margin_days < 15 else "Low"
+    return "Critical" if margin_days < 0 else "High" if margin_days < 5 else "Medium" if margin_days < 10 else "Low"
