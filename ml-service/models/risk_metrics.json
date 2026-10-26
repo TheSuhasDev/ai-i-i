@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-10-26T06:56:58.398956+00:00",
+  "generated_at": "2026-10-26T07:50:31.706430+00:00",
   "label": "stock < lead-time demand (next lead_time days) + 1.65 * std(60d) * sqrt(lead_time)",
   "split_date": "2026-04-28",
   "validation_days": 60,

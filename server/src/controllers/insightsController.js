@@ -22,13 +22,20 @@ export async function computeAndStore(product) {
   if (purchaseOrders.expectedDeliveryDate) {
     body.expected_delivery_date = purchaseOrders.expectedDeliveryDate.toISOString().slice(0, 10);
   }
-  const data = await mlService.insights(body);
+  const [data, maxSale] = await Promise.all([
+    mlService.insights(body),
+    Sale.findOne().sort({ date: -1 }).select("date").lean(),
+  ]);
+  const liveDataDate = maxSale?.date
+    ? maxSale.date.toISOString().slice(0, 10)
+    : data.data_as_of || data.inputs?.data_as_of || null;
+
   return Insight.findOneAndUpdate(
     { product: product._id },
     {
       productCode: product.code,
       asOf: data.as_of,
-      dataAsOf: data.data_as_of || data.inputs?.data_as_of || null,
+      dataAsOf: liveDataDate,
       priority: data.priority,
       healthScore: data.health.score,
       healthStatus: data.health.status,
@@ -36,7 +43,14 @@ export async function computeAndStore(product) {
       orderQty: data.reorder.order_qty,
       daysOfCover: data.stockout.days_of_cover,
       marginDays: data.stockout.margin_days,
-      data,
+      data: {
+        ...data,
+        data_as_of: liveDataDate,
+        inputs: {
+          ...(data.inputs || {}),
+          data_as_of: liveDataDate,
+        },
+      },
       computedAt: new Date(),
     },
     { upsert: true, returnDocument: "after", setDefaultsOnInsert: true }
@@ -48,7 +62,23 @@ export async function getInsight(req, res) {
   const product = await Product.findOne({ code: req.params.code.toUpperCase() });
   if (!product) throw new AppError(`Unknown product ${req.params.code}`, 404);
   const doc = await computeAndStore(product);
-  res.json({ success: true, data: { ...doc.data, computedAt: doc.computedAt } });
+  const maxSale = await Sale.findOne().sort({ date: -1 }).select("date").lean();
+  const liveDataDate = maxSale?.date ? maxSale.date.toISOString().slice(0, 10) : null;
+  res.json({
+    success: true,
+    dataDate: liveDataDate,
+    dataAsOf: liveDataDate,
+    data: {
+      ...doc.data,
+      computedAt: doc.computedAt,
+      dataAsOf: liveDataDate,
+      data_as_of: liveDataDate,
+      inputs: {
+        ...(doc.data?.inputs || {}),
+        data_as_of: liveDataDate,
+      },
+    },
+  });
 }
 
 // GET /api/insights?priority=&status=&full=1  -> stored results, most urgent first.
@@ -63,9 +93,19 @@ export async function listInsights(req, res) {
       "productCode asOf dataAsOf priority healthScore healthStatus riskPct orderQty daysOfCover marginDays computedAt data.name data.as_of data.data_as_of data.inputs.data_as_of data.inputs.data_age_days data.classification data.trend.pattern data.trend.trend data.trend.yoy_change_pct data.trend.monthly_index data.trend.weekly_series"
     );
   }
-  const docs = await query.lean();
+  const [docs, maxSale] = await Promise.all([
+    query.lean(),
+    Sale.findOne().sort({ date: -1 }).select("date").lean(),
+  ]);
+  const liveDataDate = maxSale?.date ? maxSale.date.toISOString().slice(0, 10) : null;
   docs.sort((a, b) => RANK[a.priority] - RANK[b.priority] || a.healthScore - b.healthScore);
-  res.json({ success: true, count: docs.length, data: docs });
+  res.json({
+    success: true,
+    count: docs.length,
+    dataDate: liveDataDate,
+    dataAsOf: liveDataDate,
+    data: docs,
+  });
 }
 
 // GET /api/insights/:code/history?weeks=52  -> complete Monday-Sunday weeks of units sold

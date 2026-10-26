@@ -67,10 +67,12 @@ export default function Dashboard() {
   const reorderNow = items.filter((i) => i.orderQty > 0).length;
   const avgHealth = items.length ? items.reduce((s, i) => s + i.healthScore, 0) / items.length : null;
   const latest = items.reduce((m, i) => (i.computedAt > m ? i.computedAt : m), "");
-  const dataDate = items.find((i) => i.data?.inputs?.data_as_of)?.data?.inputs?.data_as_of
-    || items.find((i) => i.data?.data_as_of)?.data?.data_as_of
+  const dataDate = data?.dataDate
+    || data?.dataAsOf
     || items.find((i) => i.dataAsOf)?.dataAsOf
-    || (items.length ? "2026-10-11" : null);
+    || items.find((i) => i.data?.data_as_of)?.data?.data_as_of
+    || items.find((i) => i.data?.inputs?.data_as_of)?.data?.inputs?.data_as_of
+    || null;
   const trendProducts = items.flatMap((item) => {
     const trend = item.data?.trend;
     return trend?.pattern ? [{ code: item.productCode, name: item.data?.name || item.productCode, trend }] : [];

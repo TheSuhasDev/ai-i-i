@@ -15,6 +15,7 @@ import Inventory from "../models/Inventory.js";
 import Sale from "../models/Sale.js";
 import PurchaseOrder, { syncInTransit } from "../models/PurchaseOrder.js";
 import Insight from "../models/Insight.js";
+import AuditLog from "../models/AuditLog.js";
 import { computeAndStore } from "../controllers/insightsController.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -85,7 +86,7 @@ async function main() {
 
   await mongoose.connect(process.env.MONGO_URI);
   console.log("MongoDB connected, clearing old data...");
-  await Promise.all([User, Supplier, Product, Inventory, Sale, PurchaseOrder, Insight].map((M) => M.deleteMany({})));
+  await Promise.all([User, Supplier, Product, Inventory, Sale, PurchaseOrder, Insight, AuditLog].map((M) => M.deleteMany({})));
 
   await User.insertMany(users);
   await Supplier.insertMany(suppliers);
