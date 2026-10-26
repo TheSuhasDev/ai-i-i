@@ -7,6 +7,19 @@ import { errorMessage } from "../services/api";
 import SearchBar from "../components/SearchBar";
 import Pagination from "../components/Pagination";
 import { CATEGORIES, money } from "../utils/format";
+import PageHeader from "../components/PageHeader";
+import ProductCell from "../components/ProductCell";
+import { exportCsv } from "../utils/exportCsv";
+
+const PRODUCT_COLS = [
+  { header: "Code", key: "code" },
+  { header: "Name", key: "name" },
+  { header: "SKU", key: "sku" },
+  { header: "Category", key: "category" },
+  { header: "Price (INR)", key: "price" },
+  { header: "Cost (INR)", key: "cost" },
+  { header: "Lead time (days)", key: "leadTimeDays" },
+];
 
 export default function ProductList() {
   const { canWrite, isAdmin } = useAuth();
@@ -28,14 +41,11 @@ export default function ProductList() {
 
   return (
     <div>
-      <div className="page-head">
-        <h2>Products</h2>
-        {canWrite && (
+      <PageHeader title="Products" subtitle="Browse and manage the products available to your inventory." actions={canWrite && (
           <Link className="btn primary" to="/products/new">
             + Add product
           </Link>
-        )}
-      </div>
+        )} />
 
       <div className="toolbar">
         <SearchBar onSearch={(search) => filter({ search })} placeholder="Search name, SKU or code" />
@@ -45,6 +55,7 @@ export default function ProductList() {
             <option key={c}>{c}</option>
           ))}
         </select>
+        <button className="btn" onClick={() => exportCsv("products", PRODUCT_COLS, data)} disabled={!data.length}>Export CSV</button>
       </div>
 
       {(error || actionError) && <div className="alert">{error || actionError}</div>}
@@ -53,9 +64,8 @@ export default function ProductList() {
         <table>
           <thead>
             <tr>
-              <th>Code</th>
+              <th>Product</th>
               <th>SKU</th>
-              <th>Name</th>
               <th>Category</th>
               <th>Price</th>
               <th>Cost</th>
@@ -66,15 +76,14 @@ export default function ProductList() {
           </thead>
           <tbody>
             {loading ? (
-              <tr><td colSpan={9} className="center">Loading...</td></tr>
+              <tr><td colSpan={7 + Number(canWrite)} className="center">Loading...</td></tr>
             ) : data.length === 0 ? (
-              <tr><td colSpan={9} className="center">No products found</td></tr>
+              <tr><td colSpan={7 + Number(canWrite)} className="center">No products found</td></tr>
             ) : (
               data.map((p) => (
                 <tr key={p._id}>
-                  <td>{p.code}</td>
+                  <td><ProductCell product={p} imageList={data} /></td>
                   <td>{p.sku}</td>
-                  <td>{p.name}</td>
                   <td>{p.category}</td>
                   <td>{money(p.price)}</td>
                   <td>{money(p.cost)}</td>

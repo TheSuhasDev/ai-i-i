@@ -6,7 +6,10 @@ import { errorMessage } from "../services/api";
 import useAuth from "../context/useAuth";
 import useFetch from "../hooks/useFetch";
 import Pill from "../components/Pill";
-import { PRIORITY_ORDER, num } from "../utils/format";
+import { PRIORITY_ORDER, formatDate, num } from "../utils/format";
+import PageHeader from "../components/PageHeader";
+import ProductCell from "../components/ProductCell";
+import ProductSelect from "../components/ProductSelect";
 
 const fetchProducts = () => productService.list({ limit: 100, sort: "code" });
 const clamp = (v, lo, hi) => Math.min(Math.max(Number.isFinite(v) ? v : 0, lo), hi);
@@ -50,6 +53,7 @@ export default function Simulator() {
   const [params, setParams] = useSearchParams();
   const code = (params.get("product") || "P001").toUpperCase();
   const products = useFetch(fetchProducts);
+  const selectedProduct = (products.data?.data ?? []).find((product) => product.code === code) || { code, product_id: code, name: code };
 
   const [demandPct, setDemandPct] = useState(0);
   const [delay, setDelay] = useState(0);
@@ -115,7 +119,7 @@ export default function Simulator() {
         { label: "Days of cover", b: b.days_of_cover, a: a.days_of_cover, kind: "num", digits: 1, worse: -1 },
         { label: "Days to delivery", b: b.days_to_delivery, a: a.days_to_delivery, kind: "num", digits: 1, worse: 1 },
         { label: "Margin (cover - delivery)", b: b.margin_days, a: a.margin_days, kind: "num", digits: 1, worse: -1 },
-        { label: "Expected stockout", b: b.expected_stockout_date ?? "none in 30 days", a: a.expected_stockout_date ?? "none in 30 days", kind: "text" },
+        { label: "Expected stockout", b: b.expected_stockout_date ? formatDate(b.expected_stockout_date) : "none in 30 days", a: a.expected_stockout_date ? formatDate(a.expected_stockout_date) : "none in 30 days", kind: "text" },
         { label: "Units short in 30 days", b: b.units_short_30d, a: a.units_short_30d, kind: "num", digits: 0, worse: 1 },
         { label: "Stockout risk (%)", b: b.risk_pct, a: a.risk_pct, kind: "num", digits: 1, worse: 1 },
         { label: "Risk level", b: b.risk_level, a: a.risk_level, kind: "pill" },
@@ -132,10 +136,7 @@ export default function Simulator() {
 
   return (
     <div>
-      <div className="page-head">
-        <h2>What-If Simulator</h2>
-        {busy && <span className="muted small">Recalculating...</span>}
-      </div>
+      <PageHeader title="What-If Simulator" subtitle="Change demand, delivery delay, stock, or order quantity and compare outcomes." actions={busy && <span className="muted small">Recalculating...</span>} />
       <p className="muted">
         Change demand, supplier delay, stock or order quantity and compare the outcome with the current situation.
         Nothing is saved.
@@ -146,12 +147,7 @@ export default function Simulator() {
           <h3>Scenario</h3>
           <label className="field">
             <span>Product</span>
-            <select value={code} onChange={(e) => changeProduct(e.target.value)}>
-              {!products.data && <option value={code}>{code}</option>}
-              {(products.data?.data ?? []).map((p) => (
-                <option key={p._id} value={p.code}>{p.code} {p.name}</option>
-              ))}
-            </select>
+            <ProductSelect products={products.data?.data ?? []} value={code} valueKey="code" onChange={changeProduct} placeholder={code} />
           </label>
 
           <div className="presets">
@@ -179,7 +175,7 @@ export default function Simulator() {
 
               <div className="table-wrap">
                 <table className="compare">
-                  <thead><tr><th>{r.product_id} {r.name}</th><th>Now</th><th>Scenario</th><th>Change</th></tr></thead>
+                  <thead><tr><th><ProductCell product={selectedProduct} size="simulator" imageList={products.data?.data ?? []} /></th><th>Now</th><th>Scenario</th><th>Change</th></tr></thead>
                   <tbody>
                     {rows.map((row) => (
                       <tr key={row.label}>
@@ -196,15 +192,15 @@ export default function Simulator() {
               <div className="card" style={{ marginTop: 16 }}>
                 <h3>Projected stock, next 30 days</h3>
                 <ResponsiveContainer width="100%" height={280}>
-                  <LineChart data={chart} margin={{ top: 10, right: 20, bottom: 20, left: 0 }}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#e5e8f0" />
+                  <LineChart data={chart} margin={{ top: 10, right: 20, bottom: 25, left: 20 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="var(--chart-grid)" />
                     <XAxis dataKey="day" label={{ value: "Days from now", position: "insideBottom", offset: -10 }} />
-                    <YAxis width={48} />
+                    <YAxis width={55} label={{ value: "Stock (units)", angle: -90, position: "insideLeft", offset: 10 }} />
                     <Tooltip />
-                    <Legend verticalAlign="top" />
-                    <ReferenceLine y={0} stroke="#e03131" />
-                    <Line dataKey="before" name="Now" stroke="#868e96" strokeWidth={2} strokeDasharray="6 4" dot={false} isAnimationActive={false} />
-                    <Line dataKey="after" name="Scenario" stroke="#3b5bdb" strokeWidth={2} dot={false} isAnimationActive={false} />
+                    <Legend verticalAlign="top" wrapperStyle={{ paddingBottom: 8 }} formatter={(value) => value === "Now" ? "Now (current inventory & demand)" : "Scenario (projected with scenario inputs)"} />
+                    <ReferenceLine y={0} stroke="var(--danger)" />
+                    <Line dataKey="before" name="Now" stroke="var(--muted)" strokeWidth={2} strokeDasharray="6 4" dot={false} isAnimationActive={false} />
+                    <Line dataKey="after" name="Scenario" stroke="var(--chart-1)" strokeWidth={2} dot={false} isAnimationActive={false} />
                   </LineChart>
                 </ResponsiveContainer>
                 <p className="muted small">Assumes constant daily demand at the forecast mean. Stock at zero means demand goes unmet.</p>

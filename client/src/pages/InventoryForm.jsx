@@ -4,6 +4,9 @@ import { inventoryService, productService } from "../services";
 import { errorMessage } from "../services/api";
 import Field from "../components/Field";
 import { todayInput } from "../utils/format";
+import PageHeader from "../components/PageHeader";
+import ProductCell from "../components/ProductCell";
+import ProductSelect from "../components/ProductSelect";
 
 const empty = { product: "", currentStock: "", inTransitQty: 0, snapshotDate: todayInput() };
 
@@ -11,7 +14,7 @@ export default function InventoryForm() {
   const { id } = useParams();
   const navigate = useNavigate();
   const [form, setForm] = useState(empty);
-  const [productLabel, setProductLabel] = useState("");
+  const [existingProduct, setExistingProduct] = useState(null);
   const [products, setProducts] = useState([]);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
@@ -22,7 +25,7 @@ export default function InventoryForm() {
         .get(id)
         .then(({ data }) => {
           const r = data.data;
-          setProductLabel(`${r.product?.code} ${r.product?.name}`);
+          setExistingProduct(r.product || null);
           // Updating a record means recording a new count, so the date defaults to today.
           setForm({
             product: r.product?._id || "",
@@ -60,18 +63,15 @@ export default function InventoryForm() {
 
   return (
     <div>
-      <h2>{id ? "Update stock" : "Add inventory record"}</h2>
+      <PageHeader title={id ? "Update stock" : "Add inventory record"} subtitle="Record the current quantity and inventory details for a product." />
       {error && <div className="alert">{error}</div>}
       <form className="card form" onSubmit={submit}>
         <div className="grid">
           {id ? (
-            <Field label="Product"><input value={productLabel} disabled /></Field>
+            <Field label="Product"><ProductCell product={existingProduct || {}} size="sm" to={null} /></Field>
           ) : (
             <Field label="Product">
-              <select value={form.product} onChange={set("product")} required>
-                <option value="">Select product</option>
-                {products.map((p) => <option key={p._id} value={p._id}>{p.code} {p.name}</option>)}
-              </select>
+              <ProductSelect products={products} value={form.product} onChange={(product) => setForm((f) => ({ ...f, product }))} />
             </Field>
           )}
           <Field label="Current stock (units)"><input type="number" min="0" step="1" value={form.currentStock} onChange={set("currentStock")} required /></Field>

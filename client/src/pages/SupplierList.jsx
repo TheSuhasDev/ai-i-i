@@ -6,6 +6,7 @@ import { supplierService } from "../services";
 import { errorMessage } from "../services/api";
 import SearchBar from "../components/SearchBar";
 import Pagination from "../components/Pagination";
+import PageHeader from "../components/PageHeader";
 
 export default function SupplierList() {
   const { canWrite, isAdmin } = useAuth();
@@ -25,10 +26,7 @@ export default function SupplierList() {
 
   return (
     <div>
-      <div className="page-head">
-        <h2>Suppliers</h2>
-        {canWrite && <Link className="btn primary" to="/suppliers/new">+ Add supplier</Link>}
-      </div>
+      <PageHeader title="Suppliers" subtitle="Manage supplier records and review delivery performance." actions={canWrite && <Link className="btn primary" to="/suppliers/new">+ Add supplier</Link>} />
 
       <div className="toolbar">
         <SearchBar onSearch={(search) => filter({ search })} placeholder="Search name, code or city" />

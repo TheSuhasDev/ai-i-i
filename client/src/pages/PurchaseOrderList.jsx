@@ -6,7 +6,38 @@ import { purchaseOrderService } from "../services";
 import { errorMessage } from "../services/api";
 import SearchBar from "../components/SearchBar";
 import Pagination from "../components/Pagination";
-import { PO_STATUSES, fmtDate } from "../utils/format";
+import { PO_STATUSES, fmtDate, normalizePoNumber } from "../utils/format";
+import PageHeader from "../components/PageHeader";
+import Pill from "../components/Pill";
+import ProductCell from "../components/ProductCell";
+import { exportCsv } from "../utils/exportCsv";
+
+const PO_COLS = [
+  { header: "PO Number", key: "poNumber", format: (v, row) => normalizePoNumber(row) },
+  { header: "Product code", key: "product.code" },
+  { header: "Product name", key: "product.name" },
+  { header: "Supplier", key: "supplier.name" },
+  { header: "Order date", key: "orderDate", format: fmtDate },
+  { header: "Expected delivery", key: "expectedDeliveryDate", format: fmtDate },
+  { header: "Actual delivery", key: "actualDeliveryDate", format: fmtDate },
+  { header: "Delay (days)", key: "delayDays", format: (v, row) => (row.status === "Delivered" && v < 0 ? 0 : v ?? "-") },
+  { header: "Qty ordered", key: "qtyOrdered" },
+  { header: "Qty received", key: "qtyReceived" },
+  { header: "Status", key: "status" },
+  { header: "Overdue", key: "_overdue", format: (_, row) => { const d = getOverdueDays(row); return d > 0 ? `${d}d` : "-"; } },
+  { header: "Quality issue", key: "qualityIssue", format: (v) => v ? "Yes" : "No" },
+];
+
+function getOverdueDays(po) {
+  if (!po.expectedDeliveryDate) return 0;
+  if (!["Pending", "In Transit"].includes(po.status)) return 0;
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const expected = new Date(po.expectedDeliveryDate);
+  expected.setHours(0, 0, 0, 0);
+  const diff = Math.round((today.getTime() - expected.getTime()) / 86400000);
+  return diff > 0 ? diff : 0;
+}
 
 export default function PurchaseOrderList() {
   const { canWrite, isAdmin } = useAuth();
@@ -15,8 +46,19 @@ export default function PurchaseOrderList() {
   });
   const [actionError, setActionError] = useState("");
 
+  const cancel = async (po) => {
+    if (!window.confirm(`Cancel purchase order ${po.poNumber}? This cannot be undone.`)) return;
+    try {
+      await purchaseOrderService.cancel(po._id);
+      setActionError("");
+      reload();
+    } catch (e) {
+      setActionError(errorMessage(e));
+    }
+  };
+
   const remove = async (po) => {
-    if (!window.confirm(`Delete purchase order ${po.poNumber}?`)) return;
+    if (!window.confirm(`Permanently delete cancelled order ${po.poNumber}?`)) return;
     try {
       await purchaseOrderService.remove(po._id);
       setActionError("");
@@ -28,10 +70,7 @@ export default function PurchaseOrderList() {
 
   return (
     <div>
-      <div className="page-head">
-        <h2>Purchase Orders</h2>
-        {canWrite && <Link className="btn primary" to="/purchase-orders/new">+ Add purchase order</Link>}
-      </div>
+      <PageHeader title="Purchase Orders" subtitle="Track open, delivered, and cancelled supplier orders." actions={canWrite && <Link className="btn primary" to="/purchase-orders/new">+ Add purchase order</Link>} />
 
       <div className="toolbar">
         <SearchBar onSearch={(search) => filter({ search })} placeholder="Search PO number" />
@@ -39,6 +78,7 @@ export default function PurchaseOrderList() {
           <option value="">All statuses</option>
           {PO_STATUSES.map((s) => <option key={s}>{s}</option>)}
         </select>
+        <button className="btn" onClick={() => exportCsv("purchase-orders", PO_COLS, data)} disabled={!data.length}>Export CSV</button>
       </div>
 
       {(error || actionError) && <div className="alert">{error || actionError}</div>}
@@ -48,36 +88,49 @@ export default function PurchaseOrderList() {
           <thead>
             <tr>
               <th>PO</th><th>Product</th><th>Supplier</th><th>Ordered</th><th>Expected</th>
-              <th>Delivered</th><th>Delay</th><th>Qty</th><th>Status</th><th>Quality</th>
-              {canWrite && <th></th>}
+              <th>Delivered</th><th>Delay</th><th>Qty</th><th>Status</th><th>Overdue</th><th className="col-quality">Quality</th>
+              {canWrite && <th className="sticky-actions-col">Actions</th>}
             </tr>
           </thead>
           <tbody>
             {loading ? (
-              <tr><td colSpan={11} className="center">Loading...</td></tr>
+              <tr><td colSpan={12} className="center">Loading...</td></tr>
             ) : data.length === 0 ? (
-              <tr><td colSpan={11} className="center">No purchase orders found</td></tr>
+              <tr><td colSpan={12} className="center">No purchase orders found</td></tr>
             ) : (
-              data.map((po) => (
+              data.map((po) => {
+                const overdueDays = getOverdueDays(po);
+                const isOverdue = overdueDays > 0;
+                const canCancel = canWrite && ["Pending", "Approved", "In Transit"].includes(po.status);
+                const canDelete = isAdmin && po.status === "Cancelled";
+                const delayVal = isOverdue ? overdueDays : (po.status === "Delivered" && po.delayDays != null && po.delayDays < 0 ? 0 : (po.delayDays ?? "-"));
+                return (
                 <tr key={po._id}>
-                  <td>{po.poNumber}</td>
-                  <td>{po.product?.name}</td>
+                  <td>{normalizePoNumber(po)}</td>
+                  <td><ProductCell product={po.product || {}} imageList={data.map((row) => row.product).filter(Boolean)} /></td>
                   <td>{po.supplier?.name}</td>
                   <td>{fmtDate(po.orderDate)}</td>
                   <td>{fmtDate(po.expectedDeliveryDate)}</td>
                   <td>{fmtDate(po.actualDeliveryDate)}</td>
-                  <td className={po.delayDays > 0 ? "late" : ""}>{po.delayDays ?? "-"}</td>
+                  <td className={po.delayDays > 0 ? "late" : ""}>{delayVal}</td>
                   <td>{po.qtyOrdered}</td>
-                  <td><span className={`pill ${po.status.replace(" ", "").toLowerCase()}`}>{po.status}</span></td>
-                  <td>{po.qualityIssue ? "Issue" : "OK"}</td>
+                  <td>
+                    <Pill value={po.status} />
+                  </td>
+                  <td>
+                    {isOverdue ? <span className="badge danger">Overdue {overdueDays}d</span> : <span className="muted small">-</span>}
+                  </td>
+                  <td className="col-quality">{po.qualityIssue ? "Issue" : "OK"}</td>
                   {canWrite && (
-                    <td className="actions">
+                    <td className="actions sticky-actions-col">
                       <Link className="btn small" to={`/purchase-orders/${po._id}/edit`}>Edit</Link>
-                      {isAdmin && <button className="btn small danger" onClick={() => remove(po)}>Delete</button>}
+                      {canCancel && <button className="btn small warning" onClick={() => cancel(po)}>Cancel</button>}
+                      {canDelete && <button className="btn small danger" onClick={() => remove(po)}>Delete</button>}
                     </td>
                   )}
                 </tr>
-              ))
+                );
+              })
             )}
           </tbody>
         </table>

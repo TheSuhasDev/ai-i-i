@@ -30,15 +30,15 @@ export default function ForecastChart({ history, forecast }) {
   return (
     <ResponsiveContainer width="100%" height={320}>
       <ComposedChart data={data} margin={{ top: 10, right: 20, bottom: 0, left: 0 }}>
-        <CartesianGrid strokeDasharray="3 3" stroke="#e5e8f0" />
+        <CartesianGrid strokeDasharray="3 3" stroke="var(--chart-grid)" />
         <XAxis dataKey="week" tickFormatter={(d) => d.slice(5)} minTickGap={24} />
         <YAxis width={48} />
         <Tooltip content={<SeriesTooltip />} />
         <Legend />
         <Area dataKey="low" stackId="band" stroke="none" fill="transparent" legendType="none" isAnimationActive={false} />
-        <Area dataKey="band" stackId="band" stroke="none" fill="#bac8ff" fillOpacity={0.6} name="80% range" isAnimationActive={false} />
-        <Line dataKey="units" name="Actual (units/week)" stroke="#3b5bdb" strokeWidth={2} dot={false} isAnimationActive={false} />
-        <Line dataKey="forecast" name="Forecast" stroke="#f08c00" strokeWidth={2} strokeDasharray="6 4" dot={{ r: 3 }} isAnimationActive={false} />
+        <Area dataKey="band" stackId="band" stroke="none" fill="var(--chart-1)" fillOpacity={0.28} name="80% range" isAnimationActive={false} />
+        <Line dataKey="units" name="Actual (units/week)" stroke="var(--chart-1)" strokeWidth={2} dot={false} isAnimationActive={false} />
+        <Line dataKey="forecast" name="Forecast" stroke="var(--chart-3)" strokeWidth={2} strokeDasharray="6 4" dot={{ r: 3 }} isAnimationActive={false} />
       </ComposedChart>
     </ResponsiveContainer>
   );

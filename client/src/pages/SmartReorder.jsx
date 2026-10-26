@@ -5,6 +5,8 @@ import useAuth from "../context/useAuth";
 import useFetch from "../hooks/useFetch";
 import Pill from "../components/Pill";
 import { num } from "../utils/format";
+import PageHeader from "../components/PageHeader";
+import ProductCell from "../components/ProductCell";
 
 const fetchFull = () => insightService.list({ full: 1 });
 
@@ -19,9 +21,9 @@ export default function SmartReorder() {
 
   return (
     <div>
-      <div className="page-head"><h2>Smart Reorder</h2></div>
-      <p className="muted">
-        Order = forecast demand over the lead time + safety stock - inventory position, adjusted for supplier reliability.
+      <PageHeader title="Smart Reorder" subtitle="Recommended order quantities based on lead-time demand, buffer stock, and supplier reliability." />
+      <p className="muted small">
+        Order = forecast demand over the lead time + <abbr title="Extra inventory held to protect against demand spikes or supplier delays">safety stock</abbr> - inventory position, adjusted for supplier reliability.
       </p>
       <div className="toolbar">
         <label className="inline">
@@ -47,24 +49,49 @@ export default function SmartReorder() {
             ) : (
               rows.map((d) => (
                 <tr key={d.product_id}>
-                  <td><Link to={`/product/${d.product_id}`}>{d.product_id} {d.name}</Link></td>
-                  <td>{d.classification?.abc_xyz}</td>
+                  <td><ProductCell product={d} size="md" imageList={rows} /></td>
+              <td><Pill value={d.classification?.abc_xyz} title="ABC ranks value contribution; XYZ describes demand variability." /></td>
                   <td><Pill value={d.priority} /></td>
-                  <td>{num(d.inputs.stock, 0)}</td>
-                  <td>{num(d.inputs.on_order, 0)}</td>
-                  <td>{num(d.reorder.reorder_point, 0)}</td>
-                  <td>{num(d.reorder.inventory_position, 0)}</td>
-                  <td><strong>{d.reorder.order_qty}</strong></td>
-                  <td>{d.reorder.supplier_id} ({num(d.reorder.supplier_reliability, 0)})</td>
+              <td className="numeric">{num(d.inputs.stock, 0)}</td>
+              <td className="numeric">{num(d.inputs.on_order, 0)}</td>
+              <td className="numeric">{num(d.reorder.reorder_point, 0)}</td>
+              <td className="numeric">{num(d.reorder.inventory_position, 0)}</td>
+              <td className="numeric"><strong>{d.reorder.order_qty}</strong></td>
+                  <td>
+                    <div>
+                      <span>{d.reorder.supplier_id} ({num(d.reorder.supplier_reliability, 0)}%)</span>
+                      {d.reorder.supplier_warning && (
+                        <span className="badge danger" style={{ marginLeft: "6px", fontSize: "11px" }} title={d.reorder.supplier_warning}>
+                          High Risk
+                        </span>
+                      )}
+                    </div>
+                    {d.reorder.alternate_supplier && (
+                      <div className="muted small" style={{ marginTop: "3px" }} title="Recommended alternate supplier based on reliability">
+                        Alt: {d.reorder.alternate_supplier.supplier_id} ({num(d.reorder.alternate_supplier.reliability_score, 0)}%)
+                      </div>
+                    )}
+                  </td>
                   {canWrite && (
-                    <td>
+                    <td className="actions" style={{ whiteSpace: "nowrap" }}>
                       {d.reorder.order_qty > 0 && (
-                        <Link
-                          className="btn small primary"
-                          to={`/purchase-orders/new?productCode=${d.product_id}&supplierCode=${d.reorder.supplier_id}&qty=${d.reorder.order_qty}`}
-                        >
-                          Create PO
-                        </Link>
+                        <div style={{ display: "flex", gap: "6px", alignItems: "center" }}>
+                          <Link
+                            className="btn small primary"
+                            to={`/purchase-orders/new?productCode=${d.product_id}&supplierCode=${d.reorder.supplier_id}&qty=${d.reorder.order_qty}`}
+                          >
+                            Create PO
+                          </Link>
+                          {d.reorder.alternate_supplier && (
+                            <Link
+                              className="btn small"
+                              title={`Order from alternate supplier ${d.reorder.alternate_supplier.supplier_id} (${num(d.reorder.alternate_supplier.reliability_score, 0)}% reliability)`}
+                              to={`/purchase-orders/new?productCode=${d.product_id}&supplierCode=${d.reorder.alternate_supplier.supplier_id}&qty=${d.reorder.order_qty}`}
+                            >
+                              Use {d.reorder.alternate_supplier.supplier_id}
+                            </Link>
+                          )}
+                        </div>
                       )}
                     </td>
                   )}

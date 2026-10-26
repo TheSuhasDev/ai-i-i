@@ -4,6 +4,8 @@ import { productService, saleService } from "../services";
 import { errorMessage } from "../services/api";
 import Field from "../components/Field";
 import { money, toDateInput, todayInput } from "../utils/format";
+import PageHeader from "../components/PageHeader";
+import ProductSelect from "../components/ProductSelect";
 
 const empty = { product: "", date: todayInput(), unitsSold: "", unitPrice: "", promoFlag: false };
 
@@ -68,15 +70,12 @@ export default function SaleForm() {
 
   return (
     <div>
-      <h2>{id ? "Edit sale" : "Record sale"}</h2>
+      <PageHeader title={id ? "Edit sale" : "Record sale"} subtitle="Record product demand with its date, quantity, and sale details." />
       {error && <div className="alert">{error}</div>}
       <form className="card form" onSubmit={submit}>
         <div className="grid">
           <Field label="Product">
-            <select value={form.product} onChange={pickProduct} required>
-              <option value="">Select product</option>
-              {products.map((p) => <option key={p._id} value={p._id}>{p.code} {p.name}</option>)}
-            </select>
+            <ProductSelect products={products} value={form.product} onChange={(product) => pickProduct({ target: { value: product } })} />
           </Field>
           <Field label="Date"><input type="date" value={form.date} onChange={set("date")} required /></Field>
           <Field label="Units sold"><input type="number" min="0" step="1" value={form.unitsSold} onChange={set("unitsSold")} required /></Field>

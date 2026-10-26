@@ -6,9 +6,23 @@ import { saleService, productService } from "../services";
 import { errorMessage } from "../services/api";
 import Pagination from "../components/Pagination";
 import { fmtDate, money } from "../utils/format";
+import PageHeader from "../components/PageHeader";
+import ProductCell from "../components/ProductCell";
+import ProductSelect from "../components/ProductSelect";
+import { exportCsv } from "../utils/exportCsv";
+
+const SALE_COLS = [
+  { header: "Date", key: "date", format: fmtDate },
+  { header: "Product code", key: "product.code" },
+  { header: "Product name", key: "product.name" },
+  { header: "Units sold", key: "unitsSold" },
+  { header: "Unit price (INR)", key: "unitPrice" },
+  { header: "Revenue (INR)", key: "revenue" },
+  { header: "Promo", key: "promoFlag", format: (v) => v ? "Yes" : "No" },
+];
 
 export default function SaleList() {
-  const { canWrite, isAdmin } = useAuth();
+  const { isAdmin } = useAuth();
   const { data, pagination, loading, error, params, filter, setPage, reload } = useList(saleService, {
     sort: "-date",
   });
@@ -32,16 +46,14 @@ export default function SaleList() {
 
   return (
     <div>
-      <div className="page-head">
-        <h2>Sales</h2>
-        <Link className="btn primary" to="/sales/new">+ Record sale</Link>
-      </div>
+      <PageHeader
+        title="Sales"
+        subtitle="Review recorded demand history and add new sales."
+        actions={isAdmin ? <Link className="btn primary" to="/sales/new">+ Record sale</Link> : null}
+      />
 
       <div className="toolbar">
-        <select value={params.product || ""} onChange={(e) => filter({ product: e.target.value })}>
-          <option value="">All products</option>
-          {products.map((p) => <option key={p._id} value={p._id}>{p.code} {p.name}</option>)}
-        </select>
+        <ProductSelect products={products} value={params.product || ""} onChange={(product) => filter({ product })} allLabel="All products" />
         <label className="inline">From <input type="date" value={params.from || ""} onChange={(e) => filter({ from: e.target.value })} /></label>
         <label className="inline">To <input type="date" value={params.to || ""} onChange={(e) => filter({ to: e.target.value })} /></label>
         <select value={params.promoFlag || ""} onChange={(e) => filter({ promoFlag: e.target.value })}>
@@ -49,6 +61,7 @@ export default function SaleList() {
           <option value="true">Promo days only</option>
           <option value="false">Non-promo days</option>
         </select>
+        <button className="btn" onClick={() => exportCsv("sales", SALE_COLS, data)} disabled={!data.length}>Export CSV</button>
       </div>
 
       {(error || actionError) && <div className="alert">{error || actionError}</div>}
@@ -58,27 +71,27 @@ export default function SaleList() {
           <thead>
             <tr>
               <th>Date</th><th>Product</th><th>Units sold</th><th>Unit price</th><th>Revenue</th><th>Promo</th>
-              {canWrite && <th></th>}
+              {isAdmin && <th></th>}
             </tr>
           </thead>
           <tbody>
             {loading ? (
-              <tr><td colSpan={7} className="center">Loading...</td></tr>
+              <tr><td colSpan={isAdmin ? 7 : 6} className="center">Loading...</td></tr>
             ) : data.length === 0 ? (
-              <tr><td colSpan={7} className="center">No sales found</td></tr>
+              <tr><td colSpan={isAdmin ? 7 : 6} className="center">No sales found</td></tr>
             ) : (
               data.map((s) => (
                 <tr key={s._id}>
                   <td>{fmtDate(s.date)}</td>
-                  <td>{s.product?.code} {s.product?.name}</td>
+                  <td><ProductCell product={s.product || {}} imageList={data.map((row) => row.product).filter(Boolean)} /></td>
                   <td>{s.unitsSold}</td>
                   <td>{money(s.unitPrice)}</td>
                   <td>{money(s.revenue)}</td>
                   <td>{s.promoFlag ? "Yes" : "-"}</td>
-                  {canWrite && (
+                  {isAdmin && (
                     <td className="actions">
                       <Link className="btn small" to={`/sales/${s._id}/edit`}>Edit</Link>
-                      {isAdmin && <button className="btn small danger" onClick={() => remove(s)}>Delete</button>}
+                      <button className="btn small danger" onClick={() => remove(s)}>Delete</button>
                     </td>
                   )}
                 </tr>

@@ -1,9 +1,11 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
-import { productService, supplierService, purchaseOrderService } from "../services";
+import { productService, supplierService, purchaseOrderService, insightService } from "../services";
 import { errorMessage } from "../services/api";
 import Field from "../components/Field";
 import { PO_STATUSES, addDaysInput, toDateInput, todayInput } from "../utils/format";
+import PageHeader from "../components/PageHeader";
+import ProductSelect from "../components/ProductSelect";
 
 const empty = {
   poNumber: "", product: "", supplier: "", orderDate: "", expectedDeliveryDate: "",
@@ -18,6 +20,7 @@ export default function PurchaseOrderForm() {
   const [form, setForm] = useState(empty);
   const [products, setProducts] = useState([]);
   const [suppliers, setSuppliers] = useState([]);
+  const [supplierRisk, setSupplierRisk] = useState([]);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
 
@@ -25,10 +28,12 @@ export default function PurchaseOrderForm() {
     Promise.all([
       productService.list({ limit: 100, sort: "code" }),
       supplierService.list({ limit: 100, sort: "code" }),
+      insightService.supplierRisk().catch(() => ({ data: { data: [] } })),
     ])
-      .then(([p, s]) => {
+      .then(([p, s, risk]) => {
         setProducts(p.data.data);
         setSuppliers(s.data.data);
+        setSupplierRisk(risk.data.data ?? []);
         const q = new URLSearchParams(prefill);
         if (!id && q.get("productCode")) {
           const prod = p.data.data.find((x) => x.code === q.get("productCode"));
@@ -101,27 +106,83 @@ export default function PurchaseOrderForm() {
       status: form.status,
     };
     try {
-      if (id) await purchaseOrderService.update(id, payload);
-      else await purchaseOrderService.create(payload);
+      if (id) {
+        await purchaseOrderService.update(id, payload);
+      } else {
+        await purchaseOrderService.create(payload);
+      }
       navigate("/purchase-orders");
     } catch (err) {
-      setError(errorMessage(err));
+      if (err.response?.status === 409 && err.response?.data?.code === "DUPLICATE_OPEN_PO") {
+        const msg = err.response.data.message || "An open purchase order already exists for this product.";
+        if (window.confirm(`${msg}\n\nDo you want to proceed and create another purchase order anyway?`)) {
+          try {
+            await purchaseOrderService.create({ ...payload, confirmDuplicate: true });
+            navigate("/purchase-orders");
+            return;
+          } catch (retryErr) {
+            setError(errorMessage(retryErr));
+          }
+        }
+      } else {
+        setError(errorMessage(err));
+      }
       setBusy(false);
     }
   };
 
+  // Build supplier-risk lookup: supplier._id → risk row (keyed via supplier.code = risk.supplier_id)
+  const riskBySupId = useMemo(() => {
+    const codeToRisk = Object.fromEntries(supplierRisk.map((r) => [r.supplier_id, r]));
+    const out = {};
+    for (const s of suppliers) {
+      if (codeToRisk[s.code]) out[s._id] = { ...codeToRisk[s.code], _supObj: s };
+    }
+    return out;
+  }, [suppliers, supplierRisk]);
+
+  const selectedRisk = form.supplier ? riskBySupId[form.supplier] : null;
+  const isHighRisk = selectedRisk?.risk_level === "High";
+
+  // Best alternative: highest reliability_score among other suppliers that have risk data
+  const bestAlt = useMemo(() => {
+    if (!isHighRisk) return null;
+    const others = Object.entries(riskBySupId)
+      .filter(([sid]) => sid !== form.supplier)
+      .map(([, r]) => r)
+      .filter((r) => r.reliability_score != null);
+    if (!others.length) return null;
+    return others.reduce((a, b) => (b.reliability_score > a.reliability_score ? b : a));
+  }, [isHighRisk, riskBySupId, form.supplier]);
+
   return (
     <div>
-      <h2>{id ? "Edit purchase order" : "Add purchase order"}</h2>
+      <PageHeader title={id ? "Edit purchase order" : "Add purchase order"} subtitle="Enter the supplier, product, quantity, and expected delivery details." />
       {error && <div className="alert">{error}</div>}
+      {isHighRisk && (
+        <div className="alert warning supplier-risk-banner">
+          <strong>&#9888; High-risk supplier</strong> — reliability score{" "}
+          <strong>{selectedRisk.reliability_score != null ? selectedRisk.reliability_score.toFixed(2) : "—"}</strong>.
+          {bestAlt && (
+            <span className="supplier-risk-alt">
+              {" "}Best alternative: <strong>{bestAlt._supObj.code} {bestAlt._supObj.name}</strong> (reliability{" "}
+              {bestAlt.reliability_score.toFixed(2)}).
+              <button
+                type="button"
+                className="btn small"
+                onClick={() => setForm((f) => ({ ...f, supplier: bestAlt._supObj._id }))}
+              >
+                Switch to {bestAlt._supObj.code}
+              </button>
+            </span>
+          )}
+        </div>
+      )}
       <form className="card form" onSubmit={submit}>
         <div className="grid">
           <Field label="PO number"><input value={form.poNumber} onChange={set("poNumber")} placeholder="PO-0399" required /></Field>
           <Field label="Product">
-            <select value={form.product} onChange={set("product")} required>
-              <option value="">Select product</option>
-              {products.map((p) => <option key={p._id} value={p._id}>{p.code} {p.name}</option>)}
-            </select>
+            <ProductSelect products={products} value={form.product} onChange={(product) => setForm((f) => ({ ...f, product }))} />
           </Field>
           <Field label="Supplier">
             <select value={form.supplier} onChange={set("supplier")} required>
@@ -136,10 +197,10 @@ export default function PurchaseOrderForm() {
           </Field>
           <Field label="Order date"><input type="date" value={form.orderDate} onChange={set("orderDate")} required /></Field>
           <Field label="Expected delivery"><input type="date" value={form.expectedDeliveryDate} onChange={set("expectedDeliveryDate")} required /></Field>
-          <Field label="Actual delivery (optional)"><input type="date" value={form.actualDeliveryDate} onChange={setActual} /></Field>
+          {id && <Field label="Actual delivery (optional)"><input type="date" value={form.actualDeliveryDate} onChange={setActual} /></Field>}
           <Field label="Unit cost (INR)"><input type="number" min="0" step="0.01" value={form.unitCost} onChange={set("unitCost")} required /></Field>
           <Field label="Qty ordered"><input type="number" min="1" step="1" value={form.qtyOrdered} onChange={set("qtyOrdered")} required /></Field>
-          <Field label="Qty received"><input type="number" min="0" step="1" value={form.qtyReceived} onChange={set("qtyReceived")} /></Field>
+          {id && <Field label="Qty received"><input type="number" min="0" step="1" value={form.qtyReceived} onChange={set("qtyReceived")} /></Field>}
         </div>
         <label className="inline">
           <input type="checkbox" checked={form.qualityIssue} onChange={(e) => setForm((f) => ({ ...f, qualityIssue: e.target.checked }))} />

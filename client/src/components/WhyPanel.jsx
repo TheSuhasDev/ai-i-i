@@ -2,6 +2,7 @@ import { useCallback } from "react";
 import { insightService } from "../services";
 import useFetch from "../hooks/useFetch";
 import { num } from "../utils/format";
+import Icon from "./Icon";
 
 export default function WhyPanel({ code }) {
   const fetchExplain = useCallback(() => insightService.explain(code), [code]);
@@ -33,11 +34,14 @@ export default function WhyPanel({ code }) {
         {e.factors.map((f) => (
           <li key={f.group} className={f.direction}>
             <div className="factor-head">
+              <span className={`factor-icon ${f.direction}`}><Icon name={f.direction === "raises" ? "alert" : "check"} size={16} /></span>
               <strong>{f.label}</strong>
               <span className="dir">{f.direction === "raises" ? "raises risk" : "lowers risk"}</span>
               <span className="muted small">{num(f.share_pct, 0)}% of the effect</span>
             </div>
-            <div className="bar"><div style={{ width: `${f.share_pct}%` }} /></div>
+            <div className={`bar contribution-bar ${f.direction}`} role="meter" aria-label={`${f.label} contribution`} aria-valuemin="0" aria-valuemax="100" aria-valuenow={f.share_pct}>
+              <div style={{ width: `${f.share_pct}%` }} />
+            </div>
             <p className="muted small">{f.reason}</p>
           </li>
         ))}

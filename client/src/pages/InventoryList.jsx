@@ -6,6 +6,20 @@ import { inventoryService, productService } from "../services";
 import { errorMessage } from "../services/api";
 import Pagination from "../components/Pagination";
 import { fmtDate } from "../utils/format";
+import PageHeader from "../components/PageHeader";
+import ProductCell from "../components/ProductCell";
+import ProductSelect from "../components/ProductSelect";
+import { exportCsv } from "../utils/exportCsv";
+
+const INV_COLS = [
+  { header: "Product code", key: "product.code" },
+  { header: "Product name", key: "product.name" },
+  { header: "Category", key: "product.category" },
+  { header: "Current stock", key: "currentStock" },
+  { header: "In transit", key: "inTransitQty" },
+  { header: "Lead time (days)", key: "product.leadTimeDays" },
+  { header: "Snapshot date", key: "snapshotDate", format: fmtDate },
+];
 
 export default function InventoryList() {
   const { canWrite, isAdmin } = useAuth();
@@ -32,21 +46,16 @@ export default function InventoryList() {
 
   return (
     <div>
-      <div className="page-head">
-        <h2>Inventory</h2>
-        {canWrite && <Link className="btn primary" to="/inventory/new">+ Add record</Link>}
-      </div>
+      <PageHeader title="Inventory" subtitle="Review stock levels and update inventory records." actions={canWrite && <Link className="btn primary" to="/inventory/new">+ Add record</Link>} />
 
       <div className="toolbar">
-        <select value={params.product || ""} onChange={(e) => filter({ product: e.target.value })}>
-          <option value="">All products</option>
-          {products.map((p) => <option key={p._id} value={p._id}>{p.code} {p.name}</option>)}
-        </select>
+        <ProductSelect products={products} value={params.product || ""} onChange={(product) => filter({ product })} allLabel="All products" />
         <select value={params.sort} onChange={(e) => filter({ sort: e.target.value })}>
           <option value="currentStock">Lowest stock first</option>
           <option value="-currentStock">Highest stock first</option>
           <option value="-updatedAt">Recently updated</option>
         </select>
+        <button className="btn" onClick={() => exportCsv("inventory", INV_COLS, data)} disabled={!data.length}>Export CSV</button>
       </div>
 
       {(error || actionError) && <div className="alert">{error || actionError}</div>}
@@ -55,20 +64,19 @@ export default function InventoryList() {
         <table>
           <thead>
             <tr>
-              <th>Code</th><th>Product</th><th>Category</th><th>Current stock</th>
+              <th>Product</th><th>Category</th><th>Current stock</th>
               <th>In transit</th><th>Lead time</th><th>Snapshot date</th><th></th>
             </tr>
           </thead>
           <tbody>
             {loading ? (
-              <tr><td colSpan={8} className="center">Loading...</td></tr>
+              <tr><td colSpan={7} className="center">Loading...</td></tr>
             ) : data.length === 0 ? (
-              <tr><td colSpan={8} className="center">No inventory records found</td></tr>
+              <tr><td colSpan={7} className="center">No inventory records found</td></tr>
             ) : (
               data.map((r) => (
                 <tr key={r._id}>
-                  <td>{r.product?.code}</td>
-                  <td>{r.product?.name}</td>
+                  <td><ProductCell product={r.product || {}} imageList={data.map((row) => row.product).filter(Boolean)} /></td>
                   <td>{r.product?.category}</td>
                   <td className={r.currentStock === 0 ? "late" : ""}>
                     {r.currentStock === 0 ? "0 (out of stock)" : r.currentStock}

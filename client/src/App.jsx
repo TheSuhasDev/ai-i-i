@@ -1,29 +1,34 @@
+import { lazy, Suspense } from "react";
 import { Navigate, Route, Routes } from "react-router-dom";
 import ProtectedRoute from "./components/ProtectedRoute";
 import Layout from "./components/Layout";
-import Login from "./pages/Login";
-import Dashboard from "./pages/Dashboard";
-import Alerts from "./pages/Alerts";
-import SmartReorder from "./pages/SmartReorder";
-import SupplierRisk from "./pages/SupplierRisk";
-import ProductInsight from "./pages/ProductInsight";
-import ProductList from "./pages/ProductList";
-import ProductForm from "./pages/ProductForm";
-import InventoryList from "./pages/InventoryList";
-import InventoryForm from "./pages/InventoryForm";
-import SaleList from "./pages/SaleList";
-import SaleForm from "./pages/SaleForm";
-import SupplierList from "./pages/SupplierList";
-import SupplierForm from "./pages/SupplierForm";
-import PurchaseOrderList from "./pages/PurchaseOrderList";
-import PurchaseOrderForm from "./pages/PurchaseOrderForm";
-import Anomalies from "./pages/Anomalies";
-import Simulator from "./pages/Simulator";
-import ModelPerformance from "./pages/ModelPerformance";
-import Assistant from "./pages/Assistant";
+
+const Login = lazy(() => import("./pages/Login"));
+const Dashboard = lazy(() => import("./pages/Dashboard"));
+const Alerts = lazy(() => import("./pages/Alerts"));
+const SmartReorder = lazy(() => import("./pages/SmartReorder"));
+const TrendSeasonalityPage = lazy(() => import("./pages/TrendSeasonality"));
+const SupplierRisk = lazy(() => import("./pages/SupplierRisk"));
+const SupplierDeliveries = lazy(() => import("./pages/SupplierDeliveries"));
+const ProductInsight = lazy(() => import("./pages/ProductInsight"));
+const ProductList = lazy(() => import("./pages/ProductList"));
+const ProductForm = lazy(() => import("./pages/ProductForm"));
+const InventoryList = lazy(() => import("./pages/InventoryList"));
+const InventoryForm = lazy(() => import("./pages/InventoryForm"));
+const SaleList = lazy(() => import("./pages/SaleList"));
+const SaleForm = lazy(() => import("./pages/SaleForm"));
+const SupplierList = lazy(() => import("./pages/SupplierList"));
+const SupplierForm = lazy(() => import("./pages/SupplierForm"));
+const PurchaseOrderList = lazy(() => import("./pages/PurchaseOrderList"));
+const PurchaseOrderForm = lazy(() => import("./pages/PurchaseOrderForm"));
+const Anomalies = lazy(() => import("./pages/Anomalies"));
+const Simulator = lazy(() => import("./pages/Simulator"));
+const ModelPerformance = lazy(() => import("./pages/ModelPerformance"));
+const Assistant = lazy(() => import("./pages/Assistant"));
 
 export default function App() {
   return (
+    <Suspense fallback={<div className="plain-fallback" role="status">Loading page…</div>}>
     <Routes>
       <Route path="/login" element={<Login />} />
 
@@ -32,7 +37,9 @@ export default function App() {
           <Route index element={<Dashboard />} />
           <Route path="alerts" element={<Alerts />} />
           <Route path="reorder" element={<SmartReorder />} />
+          <Route path="trend" element={<TrendSeasonalityPage />} />
           <Route path="supplier-risk" element={<SupplierRisk />} />
+          <Route path="supplier-risk/:id/deliveries" element={<SupplierDeliveries />} />
           <Route path="product/:code" element={<ProductInsight />} />
 
           <Route path="products" element={<ProductList />} />
@@ -63,5 +70,6 @@ export default function App() {
 
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
+    </Suspense>
   );
 }

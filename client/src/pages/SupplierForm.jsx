@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { supplierService } from "../services";
 import { errorMessage } from "../services/api";
+import PageHeader from "../components/PageHeader";
 import Field from "../components/Field";
 
 const empty = { code: "", name: "", contactEmail: "", city: "" };
@@ -40,7 +41,7 @@ export default function SupplierForm() {
 
   return (
     <div>
-      <h2>{id ? "Edit supplier" : "Add supplier"}</h2>
+      <PageHeader title={id ? "Edit supplier" : "Add supplier"} subtitle="Maintain supplier contact details and delivery information." />
       {error && <div className="alert">{error}</div>}
       <form className="card form" onSubmit={submit}>
         <div className="grid">

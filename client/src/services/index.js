@@ -12,8 +12,14 @@ const make = (path) => ({
 });
 
 export const productService = make("/products");
-export const supplierService = make("/suppliers");
-export const purchaseOrderService = make("/purchase-orders");
+export const supplierService = {
+  ...make("/suppliers"),
+  deliveries: (id, params = {}) => api.get(`/suppliers/${id}/deliveries`, { params: clean(params) }),
+};
+export const purchaseOrderService = {
+  ...make("/purchase-orders"),
+  cancel: (id) => api.patch(`/purchase-orders/${id}/cancel`),
+};
 export const inventoryService = make("/inventory");
 export const saleService = make("/sales");
 

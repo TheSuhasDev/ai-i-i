@@ -4,9 +4,11 @@ import { productService, supplierService } from "../services";
 import { errorMessage } from "../services/api";
 import Field from "../components/Field";
 import { CATEGORIES } from "../utils/format";
+import PageHeader from "../components/PageHeader";
+import ProductThumb from "../components/ProductThumb";
 
 const empty = {
-  code: "", sku: "", name: "", category: CATEGORIES[0],
+  code: "", sku: "", name: "", imageUrl: "", category: CATEGORIES[0],
   price: "", cost: "", leadTimeDays: "", suppliers: [], isActive: true,
 };
 
@@ -44,7 +46,7 @@ export default function ProductForm() {
     setBusy(true);
     setError("");
     const payload = {
-      code: form.code, sku: form.sku, name: form.name, category: form.category,
+      code: form.code, sku: form.sku, name: form.name, imageUrl: form.imageUrl.trim() || undefined, category: form.category,
       price: Number(form.price), cost: Number(form.cost), leadTimeDays: Number(form.leadTimeDays),
       suppliers: form.suppliers, isActive: form.isActive,
     };
@@ -60,13 +62,14 @@ export default function ProductForm() {
 
   return (
     <div>
-      <h2>{id ? "Edit product" : "Add product"}</h2>
+      <PageHeader title={id ? "Edit product" : "Add product"} subtitle="Enter the product details used across inventory and forecasting." />
       {error && <div className="alert">{error}</div>}
       <form className="card form" onSubmit={submit}>
         <div className="grid">
           <Field label="Code"><input value={form.code} onChange={set("code")} placeholder="P041" required /></Field>
           <Field label="SKU"><input value={form.sku} onChange={set("sku")} placeholder="SKU-1041" required /></Field>
           <Field label="Name"><input value={form.name} onChange={set("name")} required /></Field>
+          <Field label="Image URL (optional)"><input type="url" value={form.imageUrl || ""} onChange={set("imageUrl")} placeholder="https://example.com/product.jpg" /></Field>
           <Field label="Category">
             <select value={form.category} onChange={set("category")}>
               {CATEGORIES.map((c) => <option key={c}>{c}</option>)}
@@ -75,6 +78,11 @@ export default function ProductForm() {
           <Field label="Price (INR)"><input type="number" min="0" step="0.01" value={form.price} onChange={set("price")} required /></Field>
           <Field label="Cost (INR)"><input type="number" min="0" step="0.01" value={form.cost} onChange={set("cost")} required /></Field>
           <Field label="Lead time (days)"><input type="number" min="1" step="1" value={form.leadTimeDays} onChange={set("leadTimeDays")} required /></Field>
+        </div>
+
+        <div className="product-image-preview">
+          <ProductThumb product={{ ...form, code: form.code }} size="lg" />
+          <span><strong>Image preview</strong><span className="muted small">Uses the product photo by code unless an image URL is provided.</span></span>
         </div>
 
         <div className="field">
