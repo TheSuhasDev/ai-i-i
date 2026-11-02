@@ -1,100 +1,100 @@
 {
-  "generated_at": "2026-10-26T07:50:31.706430+00:00",
+  "generated_at": "2026-11-02T10:51:25.202860+00:00",
   "label": "stock < lead-time demand (next lead_time days) + 1.65 * std(60d) * sqrt(lead_time)",
-  "split_date": "2026-04-28",
+  "split_date": "2026-05-05",
   "validation_days": 60,
   "selected_model": "logreg",
   "validation_pr_auc": {
-    "rf": 0.9685,
-    "logreg": 0.9733
+    "rf": 0.9725,
+    "logreg": 0.9761
   },
-  "threshold": 0.5954,
+  "threshold": 0.5934,
   "class_weights": "balanced; probabilities calibrated (Platt) on the validation fold",
-  "train_positive_rate": 0.1713,
+  "train_positive_rate": 0.1708,
   "test": {
     "n": 6952,
-    "positive_rate": 0.164,
+    "positive_rate": 0.1631,
     "at_threshold": {
-      "precision": 0.9564,
-      "recall": 0.8667,
-      "f1": 0.9093,
-      "tp": 988,
-      "fp": 45,
-      "fn": 152,
-      "tn": 5767
+      "precision": 0.9523,
+      "recall": 0.8633,
+      "f1": 0.9056,
+      "tp": 979,
+      "fp": 49,
+      "fn": 155,
+      "tn": 5769
     },
     "at_0_5": {
-      "precision": 0.9324,
-      "recall": 0.9079,
-      "f1": 0.92,
-      "tp": 1035,
-      "fp": 75,
-      "fn": 105,
+      "precision": 0.9268,
+      "recall": 0.9039,
+      "f1": 0.9152,
+      "tp": 1025,
+      "fp": 81,
+      "fn": 109,
       "tn": 5737
     },
-    "roc_auc": 0.9939,
-    "pr_auc": 0.9752,
-    "brier": 0.0209
+    "roc_auc": 0.9938,
+    "pr_auc": 0.9746,
+    "brier": 0.0211
   },
   "rule_baseline_stock_ratio_lt_1": {
-    "precision": 0.9064,
-    "recall": 0.9088,
-    "f1": 0.9076,
-    "tp": 1036,
-    "fp": 107,
-    "fn": 104,
-    "tn": 5705
+    "precision": 0.8959,
+    "recall": 0.9109,
+    "f1": 0.9034,
+    "tp": 1033,
+    "fp": 120,
+    "fn": 101,
+    "tn": 5698
   },
   "calibration_table": [
     {
       "bin": "(-0.001, 0.1]",
-      "n": 5464,
+      "n": 5502,
       "predicted": 0.003,
-      "actual": 0.004
+      "actual": 0.006
     },
     {
       "bin": "(0.1, 0.3]",
-      "n": 230,
-      "predicted": 0.179,
-      "actual": 0.178
+      "n": 204,
+      "predicted": 0.184,
+      "actual": 0.147
     },
     {
       "bin": "(0.3, 0.5]",
-      "n": 148,
-      "predicted": 0.396,
-      "actual": 0.27
+      "n": 140,
+      "predicted": 0.399,
+      "actual": 0.329
     },
     {
       "bin": "(0.5, 0.7]",
-      "n": 151,
-      "predicted": 0.598,
-      "actual": 0.636
+      "n": 143,
+      "predicted": 0.597,
+      "actual": 0.58
     },
     {
       "bin": "(0.7, 0.9]",
-      "n": 203,
+      "n": 204,
       "predicted": 0.819,
-      "actual": 0.931
+      "actual": 0.926
     },
     {
       "bin": "(0.9, 1.0]",
-      "n": 756,
-      "predicted": 0.976,
+      "n": 759,
+      "predicted": 0.978,
       "actual": 0.992
     }
   ],
   "feature_importance": {
-    "stock_ratio": 0.442,
-    "cover_ltd": 0.3013,
-    "cover_days": 0.0598,
-    "cv_60": 0.0065,
-    "growth_28_90": 0.004,
-    "sup_delay": 0.001,
-    "mean7_ratio": 0.0009,
-    "lead_time_days": 0.0004,
-    "doy_sin": 0.0001,
-    "doy_cos": 0.0,
-    "sup_ontime": -0.0003
+    "stock_ratio": 0.4366,
+    "cover_ltd": 0.3011,
+    "cover_days": 0.0647,
+    "cv_60": 0.0062,
+    "growth_28_90": 0.0041,
+    "sup_delay": 0.0015,
+    "mean7_ratio": 0.0012,
+    "lead_time_days": 0.0003,
+    "doy_cos": 0.0001,
+    "doy_sin": -0.0001,
+    "sup_ontime": -0.0004
   },
   "notes": "Daily rows of one product are autocorrelated, so the effective sample size is smaller than n."
 }

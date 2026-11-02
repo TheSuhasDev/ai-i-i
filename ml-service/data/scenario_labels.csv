@@ -6,27 +6,27 @@ P004,Webcam 1080p,increasing,none,high,Z,B,Z,well,none,S2,48.1,10.0,38.1,Low,87.
 P005,Laptop Stand,increasing,none,low,X,C,X,normal,none,S3,18.0,7.3,10.7,Medium,95.1,Healthy,0,2.27
 P006,External HDD 1TB,decreasing,none,medium,Y,A,Y,normal,none,"S2,S5",27.2,9.4,17.8,Low,94.6,Healthy,0,2.27
 P007,USB Flash Drive 64GB,decreasing,none,high,Z,C,Z,over,none,S5,180.2,6.7,173.5,Low,58.2,Warning,0,15.53
-P008,Laptop Backpack,trend_seasonal,college,low,X,B,X,near,rising_demand,S4,10.9,8.5,2.3,High,54.3,Warning,0,1.1
+P008,Laptop Backpack,trend_seasonal,college,low,X,B,X,near,rising_demand,S4,10.8,8.5,2.3,High,54.2,Warning,0,1.1
 P009,Phone Charger 20W,stable,none,low,X,A,X,well,none,S1,22.2,5.0,17.2,Low,96.8,Healthy,0,3.39
 P010,Power Bank 10000mAh,seasonal,festive,medium,Y,A,Y,reorder,low_stock,"S1,S2",0.0,7.0,-7.0,Critical,30.7,Critical,1,0.0
 P011,Bluetooth Earbuds,trend_seasonal,festive,high,Z,A,Z,reorder,rising_demand,S2,6.0,10.0,-4.0,Critical,35.5,Critical,1,0.41
 P012,Wired Earphones,decreasing,none,low,X,C,X,over,none,"S5,S3",215.3,6.5,208.8,Low,53.3,Warning,0,27.49
-P013,Bluetooth Speaker,seasonal,festive,medium,Y,B,Y,near,late_supplier,"S2,S6",21.5,14.2,7.2,Medium,55.2,Warning,0,1.19
-P014,Smartwatch,seasonal,festive,high,Z,A,Z,reorder,long_lead_time,S6,3.5,2.0,1.5,High,24.9,Critical,0,0.15
-P015,Phone Case,seasonal,festive,high,Z,C,Z,normal,none,S3,20.5,6.3,14.2,Medium,91.3,Healthy,0,2.24
+P013,Bluetooth Speaker,seasonal,festive,medium,Y,B,Y,near,late_supplier,"S2,S6",21.4,14.2,7.2,Medium,55.3,Warning,0,1.19
+P014,Smartwatch,seasonal,festive,high,Z,A,Z,reorder,long_lead_time,S6,3.5,2.0,1.5,High,25.0,Critical,0,0.15
+P015,Phone Case,seasonal,festive,high,Z,C,Z,normal,none,S3,20.4,6.3,14.1,Medium,91.3,Healthy,0,2.24
 P016,Tempered Glass,stable,none,low,X,C,X,reorder,low_stock,"S3,S5",5.0,4.5,0.5,High,47.1,Warning,0,0.85
-P017,Table Fan,seasonal,summer,medium,Y,B,Y,near,late_supplier,S7,25.3,9.0,16.3,Low,51.3,Warning,0,1.18
-P018,Pedestal Fan,seasonal,summer,medium,Y,A,Y,over,none,"S7,S3",218.0,14.2,203.8,Low,48.6,Warning,0,12.44
-P019,Air Cooler,seasonal,summer,high,Z,A,Z,over,none,S7,226.0,19.2,206.8,Low,40.2,Warning,0,7.54
+P017,Table Fan,seasonal,summer,medium,Y,B,Y,near,late_supplier,S7,25.0,9.0,16.0,Low,51.6,Warning,0,1.19
+P018,Pedestal Fan,seasonal,summer,medium,Y,A,Y,over,none,"S7,S3",218.0,14.2,203.8,Low,48.5,Warning,0,12.49
+P019,Air Cooler,seasonal,summer,high,Z,A,Z,over,none,S7,226.0,19.2,206.8,Low,40.1,Warning,0,7.51
 P020,Electric Kettle,stable,none,low,X,C,X,near,low_stock,S4,9.7,7.5,2.1,High,57.6,Warning,0,1.17
 P021,Steam Iron,stable,none,low,X,C,X,well,none,"S4,S5",37.2,8.6,28.6,Low,93.0,Healthy,0,3.29
 P022,Mixer Grinder,increasing,none,high,Z,B,Z,near,rising_demand,S5,16.4,9.7,6.6,Medium,55.0,Warning,0,1.24
-P023,Notebook 200 Pages,seasonal,college,low,X,B,X,well,none,S4,24.0,5.5,18.4,Low,94.5,Healthy,0,3.7
+P023,Notebook 200 Pages,seasonal,college,low,X,B,X,well,none,S4,23.4,5.5,17.8,Low,94.5,Healthy,0,3.7
 P024,A4 Paper Ream,stable,none,low,X,B,X,normal,none,S4,13.4,4.5,8.8,Medium,95.0,Healthy,0,2.26
 P025,Ball Pens Pack,decreasing,none,low,X,C,X,normal,none,S4,10.9,4.5,6.3,Medium,95.1,Healthy,0,2.1
 P026,Highlighter Set,stable,none,medium,Y,C,Y,well,none,"S4,S5",27.3,5.6,21.6,Low,92.7,Healthy,0,2.92
-P027,Scientific Calculator,seasonal,college,high,Z,B,Z,well,none,S3,49.2,8.3,40.9,Low,87.5,Healthy,0,3.64
-P028,Geometry Box,seasonal,college,high,Z,C,Z,over,none,S4,229.4,6.5,222.9,Low,44.9,Warning,0,21.46
+P027,Scientific Calculator,seasonal,college,high,Z,B,Z,well,none,S3,47.7,8.3,39.4,Low,87.8,Healthy,0,3.63
+P028,Geometry Box,seasonal,college,high,Z,C,Z,over,none,S4,229.4,6.5,222.9,Low,44.9,Warning,0,21.63
 P029,File Folders,stable,none,high,Z,C,Z,normal,none,S4,16.4,5.5,10.9,Medium,86.8,Healthy,0,1.92
 P030,Whiteboard Markers,decreasing,none,medium,Y,C,Y,over,none,"S4,S5",222.7,5.6,217.1,Low,50.0,Warning,0,30.47
 P031,WiFi Router AC1200,increasing,none,low,X,A,X,near,rising_demand,"S1,S3",12.7,9.2,3.5,High,57.7,Warning,0,1.15
@@ -35,7 +35,7 @@ P033,WiFi Range Extender,stable,none,medium,Y,B,Y,reorder,late_supplier,"S2,S6",
 P034,USB WiFi Adapter,stable,none,high,Z,C,Z,normal,none,S8,25.4,8.6,16.7,Low,84.8,Healthy,0,1.9
 P035,Network Switch 8-Port,increasing,none,medium,Y,C,Y,near,long_lead_time,S8,17.8,12.6,5.1,Medium,53.7,Warning,0,1.15
 P036,Gaming Mouse,increasing,none,high,Z,B,Z,well,none,S2,59.2,10.0,49.1,Low,87.5,Healthy,0,3.55
-P037,Gaming Headset,trend_seasonal,festive,low,X,A,X,reorder,long_lead_time,"S2,S8",13.3,12.8,0.5,High,49.1,Warning,0,0.97
+P037,Gaming Headset,trend_seasonal,festive,low,X,A,X,reorder,long_lead_time,"S2,S8",13.3,12.8,0.5,High,49.0,Warning,0,0.97
 P038,Mousepad XL,increasing,none,low,X,C,X,normal,none,S3,12.5,6.3,6.2,Medium,87.1,Healthy,0,1.82
 P039,Game Controller,trend_seasonal,festive,high,Z,C,Z,reorder,long_lead_time,"S6,S8",0.0,5.0,-5.0,Critical,22.1,Critical,1,0.0
-P040,LED Strip Lights,trend_seasonal,festive,medium,Y,C,Y,reorder,long_lead_time,S6,20.8,19.4,1.4,High,42.4,Warning,0,0.92
+P040,LED Strip Lights,trend_seasonal,festive,medium,Y,C,Y,reorder,long_lead_time,S6,20.8,19.4,1.4,High,42.3,Warning,0,0.92

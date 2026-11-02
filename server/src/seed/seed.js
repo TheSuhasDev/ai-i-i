@@ -48,20 +48,36 @@ async function main() {
   }));
   const productId = Object.fromEntries(products.map((p) => [p.code, p._id]));
 
+  const rawSales = readCsv("sales.csv");
+  let maxSaleTime = 0;
+  for (const r of rawSales) {
+    if (r.date) {
+      const t = new Date(`${r.date}T00:00:00.000Z`).getTime();
+      if (t > maxSaleTime) maxSaleTime = t;
+    }
+  }
+  const now = new Date();
+  const todayUtc = new Date(Date.UTC(now.getFullYear(), now.getMonth(), now.getDate())).getTime();
+  const dateShiftMs = maxSaleTime > 0 ? todayUtc - maxSaleTime : 0;
+  const shiftDate = (d) => {
+    if (!d) return null;
+    return new Date(d.getTime() + dateShiftMs);
+  };
+
   const inventory = readCsv("inventory_snapshot.csv").map((r) => ({
     product: productId[r.product_id], currentStock: num(r.current_stock),
-    inTransitQty: num(r.in_transit_qty), snapshotDate: date(r.snapshot_date),
+    inTransitQty: num(r.in_transit_qty), snapshotDate: shiftDate(date(r.snapshot_date)),
   }));
 
-  const sales = readCsv("sales.csv").map((r) => ({
-    product: productId[r.product_id], date: date(r.date), unitsSold: num(r.units_sold),
+  const sales = rawSales.map((r) => ({
+    product: productId[r.product_id], date: shiftDate(date(r.date)), unitsSold: num(r.units_sold),
     unitPrice: num(r.unit_price), revenue: num(r.revenue), promoFlag: r.promo_flag === "1",
   }));
 
   const purchaseOrders = readCsv("purchase_orders.csv").map((r) => ({
     poNumber: r.po_id, product: productId[r.product_id], supplier: supplierId[r.supplier_id],
-    orderDate: date(r.order_date), expectedDeliveryDate: date(r.expected_delivery_date),
-    actualDeliveryDate: date(r.actual_delivery_date), delayDays: num(r.delay_days),
+    orderDate: shiftDate(date(r.order_date)), expectedDeliveryDate: shiftDate(date(r.expected_delivery_date)),
+    actualDeliveryDate: shiftDate(date(r.actual_delivery_date)), delayDays: num(r.delay_days),
     qtyOrdered: num(r.qty_ordered), qtyReceived: num(r.qty_received), unitCost: num(r.unit_cost),
     qualityIssue: r.quality_issue === "1", status: r.status,
   }));

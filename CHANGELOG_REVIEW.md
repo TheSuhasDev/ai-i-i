@@ -62,3 +62,8 @@
 | `client/src/components/CommandPalette.jsx` | **ADDED** | Quick Jump / Command Palette dialog with `Ctrl+K` shortcut and keyboard navigation. | Enables lightning-fast keyboard-first navigation across all SaaS pages and tools. |
 | `client/src/components/NotificationBell.jsx` | **ADDED** | Topbar live notification bell dropdown with real-time alert count. | Surfaces critical supply chain bottlenecks (stockouts, low stock, overdue POs) at a glance. |
 | `client/src/components/Layout.jsx` | **POLISHED** | Added route document titles, offline network banner, `Ctrl+K` trigger, and alert bell. | Elevates application layout with enterprise navigation and connectivity feedback. |
+| `server/src/seed/seed.js` | **FIXED** | Added dynamic date shifting so all seeded dates (sales, inventory snapshot, POs) are relative to current date (latest record = today). | Eliminates false staleness warnings on newly seeded data while preserving volume and structure. |
+| `server/package.json` | **ADDED** | Added `"seed:refresh"` npm script to re-seed with current dates and trigger ML recompute. | Provides one command to re-seed and refresh all ML insights. |
+| `package.json` | **ADDED** | Added root `package.json` with `"seed:refresh"` convenience script. | Enables running `npm run seed:refresh` directly from project root. |
+| `client/src/components/MetricCard.jsx` | **POLISHED** | Added flex layout with progress bar spacer to guarantee equal card heights. | Ensures uniform height between cards with and without progress meters. |
+| `client/src/index.css` | **POLISHED** | Updated `.cards`, `.card.stat`, and `.card-link` CSS to enforce equal height across KPI grid. | Keeps all 4 dashboard metric cards perfectly aligned. |

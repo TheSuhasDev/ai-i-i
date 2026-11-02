@@ -8,6 +8,7 @@
     "start": "node src/index.js",
     "lint": "eslint .",
     "seed": "node src/seed/seed.js",
+    "seed:refresh": "node src/seed/seed.js",
     "data:advance": "node src/scripts/advanceData.js",
     "test": "node --test"
   },

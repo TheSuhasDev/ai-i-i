@@ -1,0 +1,8 @@
+{
+  "name": "ai-inventory-intelligence",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "seed:refresh": "npm --prefix server run seed:refresh"
+  }
+}
