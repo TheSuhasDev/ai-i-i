@@ -96,7 +96,7 @@
 }
 
 * { box-sizing: border-box; }
-html { min-width: 320px; background: var(--bg); }
+html { min-width: 320px; background: var(--bg); scrollbar-gutter: stable; }
 body {
   min-width: 320px;
   min-height: 100vh;
@@ -330,7 +330,7 @@ input::placeholder, textarea::placeholder { color: var(--subtle); }
 input:focus, select:focus, textarea:focus { border-color: var(--accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 16%, transparent); outline: 0; }
 input[type="checkbox"], input[type="radio"] { width: 16px; min-height: 16px; height: 16px; accent-color: var(--accent-strong); }
 input[type="range"] { accent-color: var(--accent-strong); }
-.table-wrap { overflow-x: auto; border: 1px solid var(--border); border-radius: var(--radius-lg); background: var(--surface); box-shadow: var(--shadow-card); }
+.table-wrap { overflow-x: auto; border: 1px solid var(--border); border-radius: var(--radius-lg); background: var(--surface); box-shadow: var(--shadow-card); min-height: 200px; }
 table { width: 100%; border-collapse: separate; border-spacing: 0; font-size: 13px; }
 th, td { padding: 11px 14px; border-bottom: 1px solid var(--border); text-align: left; white-space: nowrap; }
 th { position: sticky; top: 0; color: var(--muted); background: var(--surface-raised); font-size: 12px; font-weight: 650; letter-spacing: .08em; text-transform: uppercase; }

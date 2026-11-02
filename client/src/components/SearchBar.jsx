@@ -2,8 +2,14 @@ import { useEffect, useRef, useState } from "react";
 
 export default function SearchBar({ onSearch, placeholder = "Search..." }) {
   const [value, setValue] = useState("");
+  const onSearchRef = useRef(onSearch);
+  const lastSearchedRef = useRef("");
   const debounceTimer = useRef(null);
   const isInitialMount = useRef(true);
+
+  useEffect(() => {
+    onSearchRef.current = onSearch;
+  }, [onSearch]);
 
   useEffect(() => {
     if (isInitialMount.current) {
@@ -14,23 +20,34 @@ export default function SearchBar({ onSearch, placeholder = "Search..." }) {
       clearTimeout(debounceTimer.current);
     }
     debounceTimer.current = setTimeout(() => {
-      onSearch(value.trim());
+      const trimmed = value.trim();
+      if (trimmed !== lastSearchedRef.current) {
+        lastSearchedRef.current = trimmed;
+        onSearchRef.current?.(trimmed);
+      }
     }, 350);
     return () => {
       if (debounceTimer.current) clearTimeout(debounceTimer.current);
     };
-  }, [value, onSearch]);
+  }, [value]);
 
   const handleSubmit = (e) => {
     e.preventDefault();
     if (debounceTimer.current) clearTimeout(debounceTimer.current);
-    onSearch(value.trim());
+    const trimmed = value.trim();
+    if (trimmed !== lastSearchedRef.current) {
+      lastSearchedRef.current = trimmed;
+      onSearchRef.current?.(trimmed);
+    }
   };
 
   const handleClear = () => {
     setValue("");
     if (debounceTimer.current) clearTimeout(debounceTimer.current);
-    onSearch("");
+    if ("" !== lastSearchedRef.current) {
+      lastSearchedRef.current = "";
+      onSearchRef.current?.("");
+    }
   };
 
   return (

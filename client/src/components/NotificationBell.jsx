@@ -13,12 +13,13 @@ export default function NotificationBell() {
     const fetchAlerts = async () => {
       try {
         setLoading(true);
-        const res = await insightService.dashboard();
+        const res = await insightService.list();
         if (!mounted || !res) return;
+        const insights = res.data?.data || [];
         const items = [];
-        const stockouts = res.stockouts || res.summary?.stockouts || 0;
-        const lowStock = res.low_stock || res.summary?.low_stock || 0;
-        const overdue = res.overdue_pos || res.summary?.overdue_pos || 0;
+        const stockouts = insights.filter((i) => i.priority === "Critical").length;
+        const lowStock = insights.filter((i) => i.riskPct >= 30).length;
+        const overdue = insights.filter((i) => i.orderQty > 0 && i.priority === "Critical").length;
 
         if (stockouts > 0) {
           items.push({

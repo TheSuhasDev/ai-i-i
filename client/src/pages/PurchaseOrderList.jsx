@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import useAuth from "../context/useAuth";
 import useToast from "../context/useToast";
@@ -54,6 +54,10 @@ export default function PurchaseOrderList() {
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [showChart, setShowChart] = useState(false);
 
+  const handleSearch = useCallback((search) => {
+    filter({ search });
+  }, [filter]);
+
   const confirmCancel = async () => {
     if (!cancelTarget) return;
     try {
@@ -108,7 +112,7 @@ export default function PurchaseOrderList() {
       </div>
 
       <div className="toolbar" style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: "10px" }}>
-        <SearchBar onSearch={(search) => filter({ search })} placeholder="Search PO number" />
+        <SearchBar onSearch={handleSearch} placeholder="Search PO number" />
         <select value={params.status || ""} onChange={(e) => filter({ status: e.target.value })}>
           <option value="">All statuses</option>
           {PO_STATUSES.map((s) => <option key={s}>{s}</option>)}
@@ -135,7 +139,7 @@ export default function PurchaseOrderList() {
                 <XAxis dataKey="status" />
                 <YAxis allowDecimals={false} width={30} />
                 <Tooltip formatter={(value) => [`${value} orders`, "Count"]} />
-                <Bar dataKey="count" fill="var(--brand, #3b82f6)" radius={[4, 4, 0, 0]} />
+                <Bar dataKey="count" fill="var(--brand, #3b82f6)" radius={[4, 4, 0, 0]} isAnimationActive={false} />
               </BarChart>
             </ResponsiveContainer>
           </div>
@@ -154,7 +158,7 @@ export default function PurchaseOrderList() {
             </tr>
           </thead>
           <tbody>
-            {loading ? (
+            {loading && data.length === 0 ? (
               <tr><td colSpan={10} className="center">Loading...</td></tr>
             ) : data.length === 0 ? (
               <tr><td colSpan={10} className="center">No purchase orders found</td></tr>

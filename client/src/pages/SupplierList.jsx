@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useCallback, useState } from "react";
 import { Link } from "react-router-dom";
 import useAuth from "../context/useAuth";
 import useToast from "../context/useToast";
@@ -17,6 +17,10 @@ export default function SupplierList() {
   const { data, pagination, loading, error, filter, setPage, reload } = useList(supplierService, { sort: "code" });
   const [actionError, setActionError] = useState("");
   const [deleteTarget, setDeleteTarget] = useState(null);
+
+  const handleSearch = useCallback((search) => {
+    filter({ search });
+  }, [filter]);
 
   const confirmRemove = async () => {
     if (!deleteTarget) return;
@@ -46,7 +50,7 @@ export default function SupplierList() {
       </div>
 
       <div className="toolbar">
-        <SearchBar onSearch={(search) => filter({ search })} placeholder="Search name, code or city" />
+        <SearchBar onSearch={handleSearch} placeholder="Search name, code or city" />
       </div>
 
       {(error || actionError) && <div className="alert">{error || actionError}</div>}
@@ -60,7 +64,7 @@ export default function SupplierList() {
             </tr>
           </thead>
           <tbody>
-            {loading ? (
+            {loading && data.length === 0 ? (
               <tr><td colSpan={5} className="center">Loading...</td></tr>
             ) : data.length === 0 ? (
               <tr><td colSpan={5} className="center">No suppliers found</td></tr>

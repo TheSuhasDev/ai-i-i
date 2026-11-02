@@ -131,7 +131,7 @@ export default function InventoryList() {
                 <XAxis dataKey="category" interval={0} angle={-15} textAnchor="end" height={45} tick={{ fontSize: 11 }} />
                 <YAxis allowDecimals={false} width={40} tick={{ fontSize: 11 }} />
                 <Tooltip formatter={(value, _name, item) => [`${num(value, 0)} units`, item.payload.fullName]} />
-                <Bar dataKey="stock" fill="var(--success, #10b981)" radius={[4, 4, 0, 0]} />
+                <Bar dataKey="stock" fill="var(--success, #10b981)" radius={[4, 4, 0, 0]} isAnimationActive={false} />
               </BarChart>
             </ResponsiveContainer>
           </div>
@@ -142,7 +142,7 @@ export default function InventoryList() {
 
       {viewMode === "grid" ? (
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: "16px", margin: "16px 0" }}>
-          {loading ? (
+          {loading && data.length === 0 ? (
             <div style={{ gridColumn: "1 / -1", textAlign: "center", padding: "40px", color: "var(--text-muted)" }}>Loading inventory...</div>
           ) : data.length === 0 ? (
             <div style={{ gridColumn: "1 / -1", textAlign: "center", padding: "40px", color: "var(--text-muted)" }}>No inventory records found</div>
@@ -208,7 +208,7 @@ export default function InventoryList() {
               </tr>
             </thead>
             <tbody>
-              {loading ? (
+              {loading && data.length === 0 ? (
                 <tr><td colSpan={8} className="center">Loading...</td></tr>
               ) : data.length === 0 ? (
                 <tr><td colSpan={8} className="center">No inventory records found</td></tr>

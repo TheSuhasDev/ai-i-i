@@ -10,10 +10,10 @@
 
 | Category | Count | Description |
 | :--- | :--- | :--- |
-| **FIXED** | 5 | Critical bug fixes in RBAC authorization, negative delay days, schema constraints, JSX nesting, and dynamic seed dates |
-| **POLISHED** | 27 | Visual elevation: charts, card/grid view toggles, progress bars, relative countdowns, KPI cards, activity feeds |
+| **FIXED** | 9 | Critical bug fixes: search debounce loop, stale-while-revalidate hooks, RBAC authorization, negative delay days, schema constraints, and notification service |
+| **POLISHED** | 33 | Anti-flicker stability, layout-shift prevention, scrollbar-gutter, Recharts animations, visual charts, card views, and activity feeds |
 | **ADDED** | 13 | New components, pages, middleware, unit tests, scripts, and configuration templates |
-| **TOTAL** | **45** | Total quality elevation changes applied |
+| **TOTAL** | **55** | Total quality elevation changes applied |
 
 ---
 
@@ -74,3 +74,13 @@
 | `client/src/pages/Alerts.jsx` | **POLISHED** | Added 4 interactive KPI metric cards (Critical, High, Medium, Low) acting as quick filters, View Mode toggle (`⊞ Cards` vs `☰ Table`), and rich Alert Cards with severity borders and direct action links. | Transforms monotonous alert lists into scannable severity cards with immediate triage shortcuts. |
 | `client/src/pages/SmartReorder.jsx` | **POLISHED** | Added 3 KPI cards (Products to Reorder, Recommended Units, Critical Stockout Risk), Recharts BarChart comparing Stock vs Reorder Point vs Recommended Order Qty, and styled order pills. | Replaces text-heavy replenishment tables with side-by-side visual inventory gap analysis. |
 | `client/src/pages/Dashboard.jsx` | **POLISHED** | Upgraded Dashboard with side-by-side "Top 5 Attention Needed" panel and mini "Live Activity Feed" showing recent purchase orders with fulfillment progress and status pills. | Provides operational situational awareness at a single glance with zero unnecessary walls of text. |
+| `client/src/components/SearchBar.jsx` | **FIXED** | Decoupled `onSearch` effect dependency using `useRef`, added `lastSearchedRef` equality check, and prevented unneeded debounced callbacks when search input is unchanged. | Eliminates infinite 350ms re-render and re-fetch loop on Products, Suppliers, and Purchase Orders caused by inline function recreation. |
+| `client/src/hooks/useList.js` | **FIXED** | Implemented stale-while-revalidate pattern: `loading` is set true only on initial empty load, existing data remains visible during background updates, and `setData`/`setPagination` skip updates if data is deeply unchanged. Memoized `filter`, `setPage`, and `reload`. | Prevents table collapse/re-mount flicker, maintains scroll position, and halts cascading re-render loops. |
+| `client/src/hooks/useFetch.js` | **FIXED** | Preserved existing data across silent background `reload()` cycles, added unchanged-data JSON equality check, and decoupled `fn` prop dependency via ref. | Stops UI flicker, unnecessary loading skeleton flashes, and chart remounts during periodic background insight checks. |
+| `client/src/components/NotificationBell.jsx` | **FIXED** | Fixed call to `insightService.list()` instead of nonexistent `.dashboard()`, and dynamically calculated stockout/low-stock/critical alert counts. | Eliminates background polling exception and accurately populates notification bell badges. |
+| `client/src/pages/ProductList.jsx` | **POLISHED** | Memoized `handleSearch` with `useCallback`, updated table and grid to check `loading && data.length === 0` so tables never collapse on background refresh, and added `isAnimationActive={false}` to Recharts. | Ensures zero layout shift, stable scroll position, and seamless search/filter behavior. |
+| `client/src/pages/SupplierList.jsx` | **POLISHED** | Memoized `handleSearch` with `useCallback`, and guarded table loading state with `loading && data.length === 0`. | Prevents layout collapse and scroll jump on supplier catalog searches and pagination. |
+| `client/src/pages/PurchaseOrderList.jsx` | **POLISHED** | Memoized `handleSearch` with `useCallback`, guarded table loading state with `loading && data.length === 0`, and set `isAnimationActive={false}` on the status chart. | Eliminates flicker, layout jumps, and repetitive chart animations. |
+| `client/src/pages/InventoryList.jsx` | **POLISHED** | Guarded grid and table loading states with `loading && data.length === 0`, and disabled chart re-animation. | Maintains inventory table and card view height during background data refreshes. |
+| `client/src/pages/SaleList.jsx` | **POLISHED** | Guarded table loading state with `loading && data.length === 0`, and set `isAnimationActive={false}` on AreaChart. | Prevents sales list collapse and eliminates scroll jumping. |
+| `client/src/index.css` | **POLISHED** | Added `scrollbar-gutter: stable;` to `html` and `min-height: 200px;` to `.table-wrap`. | Prevents horizontal and vertical layout shifts when scrollbars appear or content is updating. |

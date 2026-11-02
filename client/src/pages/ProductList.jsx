@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import useAuth from "../context/useAuth";
 import useToast from "../context/useToast";
@@ -53,6 +53,10 @@ export default function ProductList() {
     }
   };
 
+  const handleSearch = useCallback((search) => {
+    filter({ search });
+  }, [filter]);
+
   const activeCount = data.filter((p) => p.isActive !== false).length;
   const avgLeadTime = data.length ? data.reduce((s, p) => s + (p.leadTimeDays || 0), 0) / data.length : 0;
 
@@ -79,7 +83,7 @@ export default function ProductList() {
       </div>
 
       <div className="toolbar" style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: "10px" }}>
-        <SearchBar onSearch={(search) => filter({ search })} placeholder="Search name, SKU or code" />
+        <SearchBar onSearch={handleSearch} placeholder="Search name, SKU or code" />
         <select value={params.category || ""} onChange={(e) => filter({ category: e.target.value })}>
           <option value="">All categories</option>
           {CATEGORIES.map((c) => (
@@ -125,7 +129,7 @@ export default function ProductList() {
                 <XAxis dataKey="category" interval={0} angle={-15} textAnchor="end" height={45} tick={{ fontSize: 11 }} />
                 <YAxis allowDecimals={false} width={30} tick={{ fontSize: 11 }} />
                 <Tooltip formatter={(value, _name, item) => [`${value} products`, item.payload.fullName]} />
-                <Bar dataKey="count" fill="var(--accent, #3b82f6)" radius={[4, 4, 0, 0]} />
+                <Bar dataKey="count" fill="var(--accent, #3b82f6)" radius={[4, 4, 0, 0]} isAnimationActive={false} />
               </BarChart>
             </ResponsiveContainer>
           </div>
@@ -136,7 +140,7 @@ export default function ProductList() {
 
       {viewMode === "grid" ? (
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: "16px", margin: "16px 0" }}>
-          {loading ? (
+          {loading && data.length === 0 ? (
             <div style={{ gridColumn: "1 / -1", textAlign: "center", padding: "40px", color: "var(--text-muted)" }}>Loading products...</div>
           ) : data.length === 0 ? (
             <div style={{ gridColumn: "1 / -1", textAlign: "center", padding: "40px", color: "var(--text-muted)" }}>No products found</div>
@@ -205,7 +209,7 @@ export default function ProductList() {
               </tr>
             </thead>
             <tbody>
-              {loading ? (
+              {loading && data.length === 0 ? (
                 <tr><td colSpan={8 + Number(canWrite)} className="center">Loading...</td></tr>
               ) : data.length === 0 ? (
                 <tr><td colSpan={8 + Number(canWrite)} className="center">No products found</td></tr>

@@ -115,7 +115,7 @@ export default function SaleList() {
                 <XAxis dataKey="date" interval="preserveStartEnd" angle={-15} textAnchor="end" height={40} tick={{ fontSize: 11 }} />
                 <YAxis width={60} tickFormatter={(v) => `₹${v >= 1000 ? (v / 1000).toFixed(0) + 'k' : v}`} tick={{ fontSize: 11 }} />
                 <Tooltip formatter={(value, _name, item) => [`${money(value)} (${item.payload.units} units)`, item.payload.product]} />
-                <Area type="monotone" dataKey="revenue" stroke="var(--brand, #3b82f6)" fill="var(--brand-soft, rgba(59, 130, 246, 0.2))" />
+                <Area type="monotone" dataKey="revenue" stroke="var(--brand, #3b82f6)" fill="var(--brand-soft, rgba(59, 130, 246, 0.2))" isAnimationActive={false} />
               </AreaChart>
             </ResponsiveContainer>
           </div>
@@ -133,7 +133,7 @@ export default function SaleList() {
             </tr>
           </thead>
           <tbody>
-            {loading ? (
+            {loading && data.length === 0 ? (
               <tr><td colSpan={isAdmin ? 7 : 6} className="center">Loading...</td></tr>
             ) : data.length === 0 ? (
               <tr><td colSpan={isAdmin ? 7 : 6} className="center">No sales found</td></tr>
