@@ -1,12 +1,14 @@
 import { useCallback, useState } from "react";
 import { anomalyService } from "../services";
-import useFetch from "../hooks/useFetch";
+import useAnalysis from "../hooks/useAnalysis";
+import useToast from "../context/useToast";
 import { formatDate, humanize } from "../utils/format";
 import PageHeader from "../components/PageHeader";
 import Pill from "../components/Pill";
 import ProductCell from "../components/ProductCell";
 import Pagination from "../components/Pagination";
 import { exportCsv } from "../utils/exportCsv";
+import { AnalysisButton, AnalysisIdle, AnalysisLoader, AnalysisReveal } from "../components/analysis";
 
 const ANOMALY_COLS = [
   { header: "Date", key: "date", format: formatDate },
@@ -37,6 +39,7 @@ function groupAnomalies(rows) {
 }
 
 export default function Anomalies() {
+  const toast = useToast();
   const [days, setDays] = useState(30);
   const [type, setType] = useState("");
   const [page, setPage] = useState(1);
@@ -47,7 +50,20 @@ export default function Anomalies() {
     () => anomalyService.list({ days, limit, type: type || undefined, page }),
     [days, type, page]
   );
-  const { data, loading, error } = useFetch(fetchIt);
+  const { state, data, error, analyzedAt, run } = useAnalysis(fetchIt, {
+    cacheKey: `anomalies-${days}-${type}-${page}`,
+    onSuccess: () => toast.success("Anomaly detection analysis complete"),
+  });
+  const [showLoader, setShowLoader] = useState(false);
+
+  const handleAnalyze = useCallback(async () => {
+    setShowLoader(true);
+    try {
+      await run();
+    } catch {
+      // Handled in useAnalysis
+    }
+  }, [run]);
 
   const res = data?.data;
   const rows = res?.anomalies ?? [];
@@ -69,7 +85,54 @@ export default function Anomalies() {
 
   return (
     <div>
-      <PageHeader title="Anomalies" subtitle="Unusual sales, stock counts, and supplier delays found in the selected period." />
+      <PageHeader
+        title="Anomalies"
+        subtitle="Unusual sales, stock counts, and supplier delays found in the selected period."
+        actions={state === "done" && !showLoader && (
+          <AnalysisButton onClick={handleAnalyze} isRunning={state === "running"} isDone={true} size="small" />
+        )}
+      />
+
+      {showLoader ? (
+        <AnalysisLoader
+          steps={[
+            "Querying transaction records across window",
+            "Running Isolation Forest anomaly models",
+            "Evaluating supplier delay thresholds",
+            "Clustering & scoring detected anomalies",
+          ]}
+          isComplete={state === "done" || state === "error"}
+          onComplete={() => setShowLoader(false)}
+        />
+      ) : state === "error" ? (
+        <div className="card" style={{ textAlign: "center", padding: "40px 20px", maxWidth: 640, margin: "32px auto" }}>
+          <div className="alert" style={{ marginBottom: 16 }}>Failed to detect anomalies: {error}</div>
+          <AnalysisButton onClick={handleAnalyze} label="Retry Analysis" isRunning={state === "running"} />
+        </div>
+      ) : state === "idle" ? (
+        <AnalysisIdle
+          icon="⚠️"
+          title="Scan for Supply Chain Anomalies"
+          description="Run machine learning Isolation Forest models to detect abnormal sales spikes, sudden dropouts, inventory count deviations, and delivery delays."
+          buttonLabel="Detect Anomalies"
+          onAnalyze={handleAnalyze}
+          isRunning={state === "running"}
+          controls={
+            <div style={{ display: "flex", gap: "10px", alignItems: "center" }}>
+              <label className="inline">
+                Time horizon:
+                <select value={days} onChange={(e) => setDays(Number(e.target.value))}>
+                  <option value={30}>Last 30 days</option>
+                  <option value={90}>Last 90 days</option>
+                  <option value={365}>Last year</option>
+                  <option value={730}>All (2 years)</option>
+                </select>
+              </label>
+            </div>
+          }
+        />
+      ) : (
+        <AnalysisReveal analyzedAt={analyzedAt} onRerun={handleAnalyze} isRunning={state === "running"}>
       <p className="muted small">
         Sales and stock anomalies detected by Isolation Forest; supplier delays flagged when a single PO arrives 15+ days late.
         Zero-sales are suppressed on out-of-stock days (lost demand, not an anomaly).
@@ -116,9 +179,7 @@ export default function Anomalies() {
             </tr>
           </thead>
           <tbody>
-            {loading ? (
-              <tr><td colSpan={6} className="center">Loading...</td></tr>
-            ) : grouped.length === 0 ? (
+            {grouped.length === 0 ? (
               <tr><td colSpan={6} className="center">No anomalies in this period</td></tr>
             ) : (
               grouped.map((g) => {
@@ -163,6 +224,8 @@ export default function Anomalies() {
       </div>
       {pagination && (
         <Pagination pagination={pagination} onPage={(p) => setPage(p)} />
+      )}
+        </AnalysisReveal>
       )}
     </div>
   );

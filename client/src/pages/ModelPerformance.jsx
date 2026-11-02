@@ -1,8 +1,11 @@
+import { useState, useCallback } from "react";
 import { Bar, BarChart, CartesianGrid, Legend, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { performanceService } from "../services";
-import useFetch from "../hooks/useFetch";
+import useAnalysis from "../hooks/useAnalysis";
+import useToast from "../context/useToast";
 import { formatDate, humanize, num } from "../utils/format";
 import PageHeader from "../components/PageHeader";
+import { AnalysisButton, AnalysisIdle, AnalysisLoader, AnalysisReveal } from "../components/analysis";
 
 const fetchPerf = () => performanceService.get();
 const pct = (v, d = 1) => (v == null ? "-" : `${num(v, d)}%`);
@@ -226,73 +229,121 @@ function ImportanceChart({ title, data }) {
 }
 
 export default function ModelPerformance() {
-  const { data, loading, error } = useFetch(fetchPerf);
+  const toast = useToast();
+  const { state, data, error, analyzedAt, run } = useAnalysis(fetchPerf, {
+    cacheKey: "model-performance",
+    onSuccess: () => toast.success("Model evaluation analysis complete"),
+  });
+  const [showLoader, setShowLoader] = useState(false);
+
+  const handleAnalyze = useCallback(async () => {
+    setShowLoader(true);
+    try {
+      await run();
+    } catch {
+      // Handled in useAnalysis
+    }
+  }, [run]);
+
   const p = data?.data;
+  const missing = p?.missing || [];
 
-  if (loading) return <><PageHeader title="ML Performance" subtitle="Saved evaluation metrics for forecasting, stockout risk, and anomaly models." /><p className="muted">Loading metrics...</p></>;
-  if (error) return <><PageHeader title="ML Performance" subtitle="Saved evaluation metrics for forecasting, stockout risk, and anomaly models." /><div className="alert">{error}</div></>;
-
-  const missing = p.missing || [];
   return (
     <div>
-      <PageHeader title="ML Performance" subtitle="Saved evaluation metrics for forecasting, stockout risk, and anomaly models." />
-      <p className="muted">
-        Every number on this page is read from the metric files written by the training scripts. Nothing is entered by hand.
-        Models are evaluated only on a time-based hold-out (the last 6 months), never a random split. The data is synthetic.
-      </p>
+      <PageHeader
+        title="ML Performance"
+        subtitle="Saved evaluation metrics for forecasting, stockout risk, and anomaly models."
+        actions={state === "done" && !showLoader && (
+          <AnalysisButton onClick={handleAnalyze} isRunning={state === "running"} isDone={true} size="small" />
+        )}
+      />
 
-      {p.forecast && <ForecastSection f={p.forecast} />}
-      {p.baseline && <BaselineSection b={p.baseline} />}
-
-      {missing.length > 0 && (
-        <div className="alert info">
-          Some metrics have not been generated yet. Run in the ml-service folder:
-          <ul>
-            {missing.map((k) => (
-              <li key={k}><code>{p.train_commands?.[k]}</code> ({humanize(k)})</li>
-            ))}
-          </ul>
+      {showLoader ? (
+        <AnalysisLoader
+          steps={[
+            "Loading hold-out validation datasets",
+            "Benchmarking naive & moving average baselines",
+            "Computing WAPE, MAE & RMSE performance scores",
+            "Evaluating feature importance & drift indicators",
+          ]}
+          isComplete={state === "done" || state === "error"}
+          onComplete={() => setShowLoader(false)}
+        />
+      ) : state === "error" ? (
+        <div className="card" style={{ textAlign: "center", padding: "40px 20px", maxWidth: 640, margin: "32px auto" }}>
+          <div className="alert" style={{ marginBottom: 16 }}>Failed to load evaluation metrics: {error}</div>
+          <AnalysisButton onClick={handleAnalyze} label="Retry Evaluation" isRunning={state === "running"} />
         </div>
-      )}
+      ) : state === "idle" ? (
+        <AnalysisIdle
+          icon="🧠"
+          title="Evaluate ML Model Performance"
+          description="Benchmark demand forecasting, stockout risk classifier precision/recall, and anomaly detection accuracy against hold-out validation splits."
+          buttonLabel="Evaluate ML Models"
+          onAnalyze={handleAnalyze}
+          isRunning={state === "running"}
+        />
+      ) : p ? (
+        <AnalysisReveal analyzedAt={analyzedAt} onRerun={handleAnalyze} isRunning={state === "running"}>
+          <p className="muted">
+            Every number on this page is read from the metric files written by the training scripts. Nothing is entered by hand.
+            Models are evaluated only on a time-based hold-out (the last 6 months), never a random split. The data is synthetic.
+          </p>
 
-      {p.risk && <RiskSection r={p.risk} />}
-      {p.anomaly && <AnomalySection a={p.anomaly} />}
+          {p.forecast && <ForecastSection f={p.forecast} />}
+          {p.baseline && <BaselineSection b={p.baseline} />}
 
-      {p.trend_detection && (
-        <div className="card">
-          <h3>Trend and seasonality detection</h3>
-          <div className="cards">
-            <div className="card stat"><h4>Trend agreement</h4><p className="big">{pct(p.trend_detection.trend_agreement_pct, 0)}</p></div>
-            <div className="card stat"><h4>Seasonality agreement</h4><p className="big">{pct(p.trend_detection.seasonality_agreement_pct, 0)}</p></div>
-            <div className="card stat"><h4>Products checked</h4><p className="big">{p.trend_detection.products}</p></div>
+          {missing.length > 0 && (
+            <div className="alert info">
+              Some metrics have not been generated yet. Run in the ml-service folder:
+              <ul>
+                {missing.map((k) => (
+                  <li key={k}><code>{p.train_commands?.[k]}</code> ({humanize(k)})</li>
+                ))}
+              </ul>
+            </div>
+          )}
+
+          {p.risk && <RiskSection r={p.risk} />}
+          {p.anomaly && <AnomalySection a={p.anomaly} />}
+
+          {p.trend_detection && (
+            <div className="card">
+              <h3>Trend and seasonality detection</h3>
+              <div className="cards">
+                <div className="card stat"><h4>Trend agreement</h4><p className="big">{pct(p.trend_detection.trend_agreement_pct, 0)}</p></div>
+                <div className="card stat"><h4>Seasonality agreement</h4><p className="big">{pct(p.trend_detection.seasonality_agreement_pct, 0)}</p></div>
+                <div className="card stat"><h4>Products checked</h4><p className="big">{p.trend_detection.products}</p></div>
+              </div>
+              <p className="muted small">{p.trend_detection.note}</p>
+            </div>
+          )}
+
+          {(p.risk?.feature_importance || p.forecast?.feature_importance_h1) && (
+            <div className="card">
+              <h3>Most important features</h3>
+              <div className="grid2">
+                <ImportanceChart title="Stockout risk model" data={p.risk?.feature_importance} />
+                <ImportanceChart title="Forecast model (1 week ahead)" data={p.forecast?.feature_importance_h1} />
+              </div>
+              <p className="muted small">Permutation importance: how much the held-out score worsens when a feature is shuffled.</p>
+            </div>
+          )}
+
+          <div className="card">
+            <h3>Metric definitions</h3>
+            <dl className="kv">
+              <div><dt><abbr title="Mean absolute error">MAE</abbr></dt><dd>Average absolute error, in units per week</dd></div>
+              <div><dt><abbr title="Root mean squared error">RMSE</abbr></dt><dd>Square root of the average squared error; punishes big misses</dd></div>
+              <div><dt><abbr title="Mean absolute percentage error">MAPE</abbr></dt><dd>Average absolute error as a percent of actual demand (weeks with zero demand ignored); inflated by low-volume weeks</dd></div>
+              <div><dt>WAPE</dt><dd>Total absolute error divided by total actual demand; the fairer headline here</dd></div>
+              <div><dt>Precision</dt><dd>Of the products flagged, the share that really ran short</dd></div>
+              <div><dt>Recall</dt><dd>Of the real stockouts, the share that were flagged</dd></div>
+              <div><dt><abbr title="Harmonic mean of precision and recall">F1</abbr></dt><dd>Balance of precision and recall</dd></div>
+            </dl>
           </div>
-          <p className="muted small">{p.trend_detection.note}</p>
-        </div>
-      )}
-
-      {(p.risk?.feature_importance || p.forecast?.feature_importance_h1) && (
-        <div className="card">
-          <h3>Most important features</h3>
-          <div className="grid2">
-            <ImportanceChart title="Stockout risk model" data={p.risk?.feature_importance} />
-            <ImportanceChart title="Forecast model (1 week ahead)" data={p.forecast?.feature_importance_h1} />
-          </div>
-          <p className="muted small">Permutation importance: how much the held-out score worsens when a feature is shuffled.</p>
-        </div>
-      )}
-
-      <div className="card">
-        <h3>Metric definitions</h3>
-        <dl className="kv">
-          <div><dt><abbr title="Mean absolute error">MAE</abbr></dt><dd>Average absolute error, in units per week</dd></div>
-          <div><dt><abbr title="Root mean squared error">RMSE</abbr></dt><dd>Square root of the average squared error; punishes big misses</dd></div>
-          <div><dt><abbr title="Mean absolute percentage error">MAPE</abbr></dt><dd>Average absolute error as a percent of actual demand (weeks with zero demand ignored); inflated by low-volume weeks</dd></div>
-          <div><dt>WAPE</dt><dd>Total absolute error divided by total actual demand; the fairer headline here</dd></div>
-          <div><dt>Precision</dt><dd>Of the products flagged, the share that really ran short</dd></div>
-          <div><dt>Recall</dt><dd>Of the real stockouts, the share that were flagged</dd></div>
-          <div><dt><abbr title="Harmonic mean of precision and recall">F1</abbr></dt><dd>Balance of precision and recall</dd></div>
-        </dl>
-      </div>
+        </AnalysisReveal>
+      ) : null}
     </div>
   );
 }

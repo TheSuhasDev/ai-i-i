@@ -1,8 +1,9 @@
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import { Link } from "react-router-dom";
 import { insightService } from "../services";
 import useAuth from "../context/useAuth";
-import useFetch from "../hooks/useFetch";
+import useAnalysis from "../hooks/useAnalysis";
+import useToast from "../context/useToast";
 import Pill from "../components/Pill";
 import { num } from "../utils/format";
 import PageHeader from "../components/PageHeader";
@@ -10,6 +11,7 @@ import ProductCell from "../components/ProductCell";
 import MetricCard from "../components/MetricCard";
 import { exportCsv } from "../utils/exportCsv";
 import { Bar, BarChart, CartesianGrid, Legend, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
+import { AnalysisButton, AnalysisIdle, AnalysisLoader, AnalysisReveal } from "../components/analysis";
 
 const REORDER_COLS = [
   { header: "Product code", key: "product_id" },
@@ -28,7 +30,21 @@ const fetchFull = () => insightService.list({ full: 1 });
 
 export default function SmartReorder() {
   const { canWrite } = useAuth();
-  const { data, loading, error } = useFetch(fetchFull);
+  const toast = useToast();
+  const { state, data, error, analyzedAt, run } = useAnalysis(fetchFull, {
+    cacheKey: "smart-reorder",
+    onSuccess: () => toast.success("Replenishment analysis complete"),
+  });
+  const [showLoader, setShowLoader] = useState(false);
+
+  const handleAnalyze = useCallback(async () => {
+    setShowLoader(true);
+    try {
+      await run();
+    } catch {
+      // Handled in useAnalysis
+    }
+  }, [run]);
   const [onlyOrder, setOnlyOrder] = useState(true);
   const [showChart, setShowChart] = useState(false);
 
@@ -47,7 +63,41 @@ export default function SmartReorder() {
 
   return (
     <div>
-      <PageHeader title="Smart Reorder" subtitle="Automated replenishment recommendations based on lead-time demand and buffer stock." />
+      <PageHeader
+        title="Smart Reorder"
+        subtitle="Automated replenishment recommendations based on lead-time demand and buffer stock."
+        actions={state === "done" && !showLoader && (
+          <AnalysisButton onClick={handleAnalyze} isRunning={state === "running"} isDone={true} size="small" />
+        )}
+      />
+
+      {showLoader ? (
+        <AnalysisLoader
+          steps={[
+            "Auditing stock on hand & transit orders",
+            "Projecting lead-time demand",
+            "Calculating buffer stock & safety thresholds",
+            "Computing optimal reorder quantities",
+          ]}
+          isComplete={state === "done" || state === "error"}
+          onComplete={() => setShowLoader(false)}
+        />
+      ) : state === "error" ? (
+        <div className="card" style={{ textAlign: "center", padding: "40px 20px", maxWidth: 640, margin: "32px auto" }}>
+          <div className="alert" style={{ marginBottom: 16 }}>Failed to calculate reorder quantities: {error}</div>
+          <AnalysisButton onClick={handleAnalyze} label="Retry Analysis" isRunning={state === "running"} />
+        </div>
+      ) : state === "idle" ? (
+        <AnalysisIdle
+          icon="📦"
+          title="Compute Smart Replenishment Quantities"
+          description="Evaluate inventory positions against projected lead-time demand to determine exact reorder points and suggested replenishment batches."
+          buttonLabel="Compute Reorder Quantities"
+          onAnalyze={handleAnalyze}
+          isRunning={state === "running"}
+        />
+      ) : (
+        <AnalysisReveal analyzedAt={analyzedAt} onRerun={handleAnalyze} isRunning={state === "running"}>
 
       <div className="cards" style={{ marginBottom: "16px" }}>
         <MetricCard label="Products to Reorder" value={rows.length} sub="Requiring procurement action" tone={rows.length > 0 ? "tone-warning" : "tone-healthy"} />
@@ -111,9 +161,7 @@ export default function SmartReorder() {
             </tr>
           </thead>
           <tbody>
-            {loading ? (
-              <tr><td colSpan={10} className="center">Loading...</td></tr>
-            ) : rows.length === 0 ? (
+            {rows.length === 0 ? (
               <tr><td colSpan={10} className="center">Nothing to order right now</td></tr>
             ) : (
               rows.map((d) => (
@@ -176,6 +224,8 @@ export default function SmartReorder() {
           </tbody>
         </table>
       </div>
+        </AnalysisReveal>
+      )}
     </div>
   );
 }

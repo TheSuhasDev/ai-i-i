@@ -11,9 +11,9 @@
 | Category | Count | Description |
 | :--- | :--- | :--- |
 | **FIXED** | 9 | Critical bug fixes: search debounce loop, stale-while-revalidate hooks, RBAC authorization, negative delay days, schema constraints, and notification service |
-| **POLISHED** | 33 | Anti-flicker stability, layout-shift prevention, scrollbar-gutter, Recharts animations, visual charts, card views, and activity feeds |
-| **ADDED** | 13 | New components, pages, middleware, unit tests, scripts, and configuration templates |
-| **TOTAL** | **55** | Total quality elevation changes applied |
+| **POLISHED** | 41 | Anti-flicker stability, layout-shift prevention, scrollbar-gutter, Recharts animations, visual charts, card views, activity feeds, and click-to-analyze UX for analytical pages |
+| **ADDED** | 20 | New components, analysis wrappers (useAnalysis, AnalysisLoader, AnalysisReveal, AnalysisButton, AnalysisIdle, AnimatedNumber), pages, middleware, unit tests, and configs |
+| **TOTAL** | **70** | Total quality elevation changes applied |
 
 ---
 
@@ -84,3 +84,55 @@
 | `client/src/pages/InventoryList.jsx` | **POLISHED** | Guarded grid and table loading states with `loading && data.length === 0`, and disabled chart re-animation. | Maintains inventory table and card view height during background data refreshes. |
 | `client/src/pages/SaleList.jsx` | **POLISHED** | Guarded table loading state with `loading && data.length === 0`, and set `isAnimationActive={false}` on AreaChart. | Prevents sales list collapse and eliminates scroll jumping. |
 | `client/src/index.css` | **POLISHED** | Added `scrollbar-gutter: stable;` to `html` and `min-height: 200px;` to `.table-wrap`. | Prevents horizontal and vertical layout shifts when scrollbars appear or content is updating. |
+| `client/src/hooks/useAnalysis.js` | **ADDED** | Created reusable state management hook for on-demand analysis workflows (`idle`, `running`, `done`, `error`) with in-memory session caching, stale response protection, and retry support. | Standardizes click-to-analyze lifecycle and guarantees cached results persist across in-app route navigation. |
+| `client/src/components/analysis/AnalysisLoader.jsx` | **ADDED** | Multi-step rolling stepper component with pulsing active spinner, green checkmarks, 0-100% progress meter, and shimmering skeleton cards. Fast-forwards to done on early API resolution and holds on last step if awaiting server. | Provides an engaging, high-fidelity AI computation experience while users wait for ML inference. |
+| `client/src/components/analysis/AnalysisReveal.jsx` | **ADDED** | Animated reveal wrapper applying staggered 90ms entry animations (`fadeSlideInUp`) across child cards, with "Analysis computed HH:MM:SS" timestamp and "Re-run analysis" trigger. | Elevates analysis presentation with smooth visual entrance and clear execution recency. |
+| `client/src/components/analysis/AnalysisButton.jsx` | **ADDED** | Primary sparkle action button (`✨ Run Analysis` / `✨ Re-run Analysis`) with inline spinner when running. | Provides an intuitive, prominent entry point for triggering intelligence calculations. |
+| `client/src/components/analysis/AnalysisIdle.jsx` | **ADDED** | Pre-computation idle hero card featuring icon badge, explanatory headline, description, parameter controls slot, and action button. | Eliminates jarring blank states and guides users on what will be computed before running. |
+| `client/src/components/analysis/AnimatedNumber.jsx` | **ADDED** | Number counter component interpolating numeric values smoothly using `requestAnimationFrame`, with `prefers-reduced-motion` instantaneous fallback. | Animates KPI value transitions cleanly during dashboard and analysis updates. |
+| `client/src/components/analysis/index.js` | **ADDED** | Unified module export barrel for all click-to-analyze UI components. | Simplifies imports across intelligence and reporting views. |
+| `client/src/index.css` | **POLISHED** | Added CSS tokens and rules for `.analysis-stepper`, `.analysis-progress-fill`, shimmer keyframes, `.analysis-reveal-card` staggered animations, and `prefers-reduced-motion` overrides. | Delivers smooth 60fps animations with full accessibility support for users with motion sensitivity. |
+| `client/src/pages/TrendSeasonality.jsx` | **POLISHED** | Converted forecast & seasonality page to on-demand click-to-analyze workflow with `AnalysisIdle`, rolling stepper loader, and staggered reveal. | Prevents heavy automated chart computations on initial view while preserving existing ML API calls. |
+| `client/src/pages/SupplierRisk.jsx` | **POLISHED** | Converted vendor risk and delivery performance page to click-to-analyze pattern with parameter badges, stepper loader, and cached results. | Allows users to intentionally run supplier risk audits on demand. |
+| `client/src/pages/SmartReorder.jsx` | **POLISHED** | Converted replenishment recommendations to click-to-analyze flow with idle state, stepper loader, and animated reveal. | Replaces auto-execution with explicit replenishment intelligence generation. |
+| `client/src/pages/Anomalies.jsx` | **POLISHED** | Converted anomaly detection page to click-to-analyze, placing time horizon controls (7d, 14d, 30d, 90d) into the idle card and loader view. | Keeps parameter tuning interactive while ensuring execution happens on user trigger. |
+| `client/src/pages/ModelPerformance.jsx` | **POLISHED** | Converted ML accuracy metrics and error distribution to click-to-analyze workflow with idle hero and stepper animation. | Explicitly presents ML model validation checks on demand. |
+| `client/src/pages/ProductInsight.jsx` | **POLISHED** | Converted single SKU deep intelligence (demand forecast, stockout probability, health score) to click-to-analyze with SKU-keyed session caching. | Prevents dual immediate API calls on product click, giving users instant page entrance and on-demand deep dive. |
+| `client/src/pages/Dashboard.jsx` | **POLISHED** | Integrated `AnalysisButton` and `AnalysisLoader` into "Refresh insights" action, preserving top KPI cards and animating their values with `AnimatedNumber`. | Provides visual rolling feedback during dashboard recomputation while keeping operational metrics visible. |
+
+---
+
+## On-demand Candidates
+
+The following 7 intelligence and ML features were audited and converted from auto-execution on mount to on-demand click-to-analyze workflows:
+
+1. **Trend & Seasonality Analysis** (`client/src/pages/TrendSeasonality.jsx` &bull; `/trend`):
+   - Computes 30-day demand forecasts, baseline vs actual curves, and day-of-week seasonality factors.
+   - Converted to on-demand analysis with 3-step ML pipeline stepper.
+2. **Supplier Risk & Delivery Performance** (`client/src/pages/SupplierRisk.jsx` &bull; `/supplier-risk`):
+   - Computes delivery delay risk, on-time fulfillment rates, and lead time variance across vendors.
+   - Converted to on-demand analysis with 3-step vendor audit stepper.
+3. **Smart Replenishment & Reorder** (`client/src/pages/SmartReorder.jsx` &bull; `/reorder`):
+   - Calculates inventory gap analysis, days until stockout, and recommended reorder quantities.
+   - Converted to on-demand analysis with 3-step replenishment evaluation stepper.
+4. **Anomaly Detection** (`client/src/pages/Anomalies.jsx` &bull; `/anomalies`):
+   - Analyzes unexpected demand spikes, sales drops, and procurement delivery anomalies.
+   - Converted to on-demand analysis with customizable time horizon controls (7d, 14d, 30d, 90d) and 3-step scanner stepper.
+5. **ML Model Performance** (`client/src/pages/ModelPerformance.jsx` &bull; `/performance`):
+   - Evaluates machine learning model accuracy metrics (MAE, RMSE, R² score) and residual error distributions.
+   - Converted to on-demand analysis with 3-step telemetry verification stepper.
+6. **Product Deep Intelligence** (`client/src/pages/ProductInsight.jsx` &bull; `/products/:code`):
+   - Generates SKU-specific health score, demand forecast curve, and stockout probability breakdown.
+   - Converted to on-demand analysis with SKU-keyed session cache and 3-step deep intelligence stepper.
+7. **Dashboard Full AI Refresh** (`client/src/pages/Dashboard.jsx` &bull; `/`):
+   - Recomputes full platform ML predictions across all products and suppliers.
+   - Enhanced with `AnalysisButton`, rolling stepper on insights section, and `AnimatedNumber` counter interpolation for KPI metric cards.
+
+### Preserved Operational CRUD Lists
+The following core operational CRUD list pages were intentionally kept loading immediately on page view (not gated behind click-to-analyze), preserving standard SaaS operational speed:
+- **Products Catalog** (`/products`)
+- **Inventory Balances** (`/inventory`)
+- **Sales Transactions** (`/sales`)
+- **Suppliers Directory** (`/suppliers`)
+- **Purchase Orders** (`/purchase-orders`)
+

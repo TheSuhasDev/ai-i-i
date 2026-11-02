@@ -1,7 +1,8 @@
-import { useCallback, useEffect } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import useAuth from "../context/useAuth";
-import useFetch from "../hooks/useFetch";
+import useAnalysis from "../hooks/useAnalysis";
+import useToast from "../context/useToast";
 import { insightService } from "../services";
 import ForecastChart from "../components/ForecastChart";
 import Pill from "../components/Pill";
@@ -12,6 +13,7 @@ import StaleDataBanner from "../components/StaleDataBanner";
 import MetricCard from "../components/MetricCard";
 import Icon from "../components/Icon";
 import ProductThumb from "../components/ProductThumb";
+import { AnalysisButton, AnalysisIdle, AnalysisLoader, AnalysisReveal } from "../components/analysis";
 import {
   Bar,
   BarChart,
@@ -58,39 +60,34 @@ function ScoreBar({ label, value }) {
   );
 }
 
-function ProductSkeleton({ code }) {
-  return (
-    <div className="product-skeleton" aria-busy="true" aria-label={`Loading analysis for ${code}`}>
-      <div className="page-head page-heading">
-        <div className="page-heading-copy" style={{ width: "100%", maxWidth: 360 }}>
-          <div className="skeleton" style={{ height: 32, width: "65%", marginBottom: 8 }} />
-          <div className="skeleton" style={{ height: 16, width: "30%" }} />
-        </div>
-      </div>
-      <div className="cards">
-        {[1, 2, 3, 4].map((i) => (
-          <div key={i} className="card skeleton-card">
-            <div className="skeleton" style={{ height: 14, width: "50%", marginBottom: 12 }} />
-            <div className="skeleton" style={{ height: 28, width: "40%", marginBottom: 8 }} />
-            <div className="skeleton" style={{ height: 12, width: "70%" }} />
-          </div>
-        ))}
-      </div>
-      <div className="card skeleton-chart" style={{ marginTop: 20 }}>
-        <div className="skeleton" style={{ height: 20, width: "25%", marginBottom: 16 }} />
-        <div className="skeleton" style={{ height: 200, width: "100%" }} />
-      </div>
-    </div>
-  );
-}
-
 function ProductInsight({ code }) {
   const { canWrite } = useAuth();
-  const fetchInsight = useCallback(() => insightService.get(code), [code]);
-  const fetchHistory = useCallback(() => insightService.history(code, 52), [code]);
-  const ins = useFetch(fetchInsight);
-  const hist = useFetch(fetchHistory);
-  const d = ins.data?.data;
+  const toast = useToast();
+  const fetchAll = useCallback(async () => {
+    const [ins, hist] = await Promise.all([
+      insightService.get(code),
+      insightService.history(code, 52).catch(() => ({ data: { data: [] } })),
+    ]);
+    return { insight: ins.data?.data, history: hist.data?.data?.weeks ?? [] };
+  }, [code]);
+
+  const { state, data, error, analyzedAt, run } = useAnalysis(fetchAll, {
+    cacheKey: `product-insight-${code}`,
+    onSuccess: () => toast.success(`Intelligence analysis for ${code} complete`),
+  });
+  const [showLoader, setShowLoader] = useState(false);
+
+  const handleAnalyze = useCallback(async () => {
+    setShowLoader(true);
+    try {
+      await run();
+    } catch {
+      // Handled in useAnalysis
+    }
+  }, [run]);
+
+  const d = data?.insight;
+  const historyWeeks = data?.history ?? [];
 
   useEffect(() => {
     if (d?.name) {
@@ -98,18 +95,51 @@ function ProductInsight({ code }) {
     }
   }, [d?.name, d?.product_id]);
 
-  if (ins.loading) return <ProductSkeleton code={code} />;
-  if (ins.error) {
+  if (showLoader) {
     return (
       <div>
-        <PageHeader title={code} subtitle="Product analysis" />
-        <div className="alert" style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "12px", flexWrap: "wrap" }}>
-          <span>Failed to load product analysis: {ins.error}</span>
-          <button className="btn small" onClick={() => { ins.reload(); hist.reload(); }}>
-            Retry
-          </button>
+        <PageHeader title={code} subtitle="Product deep intelligence analysis" />
+        <AnalysisLoader
+          steps={[
+            "Querying inventory balance & transit orders",
+            "Running 4-week ARIMA/ML demand forecasts",
+            "Calculating stockout risk & safety stock cover",
+            "Synthesizing explainable AI drivers",
+          ]}
+          isComplete={state === "done" || state === "error"}
+          onComplete={() => setShowLoader(false)}
+        />
+      </div>
+    );
+  }
+
+  if (state === "error") {
+    return (
+      <div>
+        <PageHeader title={code} subtitle="Product deep intelligence analysis" />
+        <div className="card" style={{ textAlign: "center", padding: "40px 20px", maxWidth: 640, margin: "32px auto" }}>
+          <div className="alert" style={{ marginBottom: 16 }}>Failed to load product analysis: {error}</div>
+          <AnalysisButton onClick={handleAnalyze} label="Retry Analysis" isRunning={state === "running"} />
+          <div style={{ marginTop: 16 }}>
+            <Link to="/" className="btn secondary small">Back to dashboard</Link>
+          </div>
         </div>
-        <Link to="/" className="btn secondary small">Back to dashboard</Link>
+      </div>
+    );
+  }
+
+  if (state === "idle" || !d) {
+    return (
+      <div>
+        <PageHeader title={code} subtitle="Product deep intelligence analysis" />
+        <AnalysisIdle
+          icon="🔍"
+          title={`Deep Intelligence Analysis for ${code}`}
+          description="Synthesize multi-horizon demand forecasting, stockout probability, buffer stock thresholds, and explainable AI risk factors for this SKU."
+          buttonLabel="Analyze Product"
+          onAnalyze={handleAnalyze}
+          isRunning={state === "running"}
+        />
       </div>
     );
   }
@@ -118,14 +148,16 @@ function ProductInsight({ code }) {
 
   return (
     <div>
-      <PageHeader title={<span className="product-detail-title"><ProductThumb product={d} size="xl" /><span>{d.name}</span></span>} subtitle={d.product_id} actions={
-        <>
-          <Pill value={d.priority} />
-          <Pill value={d.health.status} />
-          <Pill value={d.classification?.abc_xyz} title="ABC ranks value contribution; XYZ describes demand variability." />
-          <Link className="btn small" to={`/simulator?product=${d.product_id}`}>What-if</Link>
-        </>
-      } />
+      <AnalysisReveal analyzedAt={analyzedAt} onRerun={handleAnalyze} isRunning={state === "running"}>
+        <PageHeader title={<span className="product-detail-title"><ProductThumb product={d} size="xl" /><span>{d.name}</span></span>} subtitle={d.product_id} actions={
+          <>
+            <Pill value={d.priority} />
+            <Pill value={d.health.status} />
+            <Pill value={d.classification?.abc_xyz} title="ABC ranks value contribution; XYZ describes demand variability." />
+            <Link className="btn small" to={`/simulator?product=${d.product_id}`}>What-if</Link>
+            <AnalysisButton onClick={handleAnalyze} isRunning={state === "running"} isDone={true} size="small" />
+          </>
+        } />
       <StaleDataBanner date={d?.inputs?.data_as_of || d?.data_as_of || d?.as_of} daysOld={d?.inputs?.data_age_days} />
 
       <div className="cards">
@@ -151,8 +183,7 @@ function ProductInsight({ code }) {
 
       <div className="card">
         <h3>Forecast</h3>
-        {hist.error && <div className="alert">History unavailable: {hist.error}</div>}
-        <ForecastChart history={hist.data?.data?.weeks ?? []} forecast={d.forecast.weeks} />
+        <ForecastChart history={historyWeeks} forecast={d.forecast.weeks} />
         <p className="muted small">
           Demand over the {d.forecast.lead_time_days}-day lead time: {num(d.forecast.lead_time_demand, 0)} units
           (cautious estimate {num(d.forecast.lead_time_demand_high, 0)}). Forecast assumes no promotions.
@@ -199,6 +230,7 @@ function ProductInsight({ code }) {
           <KeyValues obj={d.supplier} />
         </div>
       </div>
+      </AnalysisReveal>
     </div>
   );
 }

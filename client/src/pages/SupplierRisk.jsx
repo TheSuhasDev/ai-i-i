@@ -1,3 +1,4 @@
+import { useState, useCallback } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import {
   Bar,
@@ -10,12 +11,15 @@ import {
   YAxis,
 } from "recharts";
 import { insightService, supplierService } from "../services";
+import useAnalysis from "../hooks/useAnalysis";
 import useFetch from "../hooks/useFetch";
+import useToast from "../context/useToast";
 import Pill from "../components/Pill";
 import MetricCard from "../components/MetricCard";
 import { humanize, num, pct } from "../utils/format";
 import PageHeader from "../components/PageHeader";
 import { exportCsv } from "../utils/exportCsv";
+import { AnalysisButton, AnalysisIdle, AnalysisLoader, AnalysisReveal } from "../components/analysis";
 
 const fetchRisk = () => insightService.supplierRisk();
 const fetchSuppliers = () => supplierService.list({ limit: 100, sort: "code" });
@@ -48,10 +52,24 @@ function cell(key, v) {
 
 export default function SupplierRisk() {
   const navigate = useNavigate();
-  const risk = useFetch(fetchRisk);
+  const toast = useToast();
   const sup = useFetch(fetchSuppliers);
+  const { state, data, error, analyzedAt, run } = useAnalysis(fetchRisk, {
+    cacheKey: "supplier-risk",
+    onSuccess: () => toast.success("Supplier risk analysis complete"),
+  });
+  const [showLoader, setShowLoader] = useState(false);
 
-  const rows = risk.data?.data ?? [];
+  const handleAnalyze = useCallback(async () => {
+    setShowLoader(true);
+    try {
+      await run();
+    } catch {
+      // Handled in useAnalysis
+    }
+  }, [run]);
+
+  const rows = data?.data ?? [];
   const supList = sup.data?.data ?? [];
   const names = Object.fromEntries(supList.map((s) => [s.code, s.name]));
   const supMap = Object.fromEntries(supList.map((s) => [s.code, s]));
@@ -75,98 +93,127 @@ export default function SupplierRisk() {
       <PageHeader
         title="Supplier Risk"
         subtitle="Supplier reliability scores and delivery performance. Reliability Score (0–100) measures performance; Risk Level categorizes risk. Click a supplier to view delivery history."
+        actions={state === "done" && !showLoader && (
+          <AnalysisButton onClick={handleAnalyze} isRunning={state === "running"} isDone={true} size="small" />
+        )}
       />
 
-      <div className="cards" style={{ marginBottom: "18px" }}>
-        <MetricCard label="Active Suppliers" value={rows.length} sub="Monitored in catalog" tone="tone-healthy" />
-        <MetricCard label="Average Reliability" value={`${avgReliability}/100`} sub="Composite score" tone="tone-healthy" />
-        <MetricCard label="High-Risk Suppliers" value={highRiskCount} sub="Reliability below 60%" tone={highRiskCount ? "tone-critical" : "tone-healthy"} />
-      </div>
-
-      {rows.length > 0 && (
-        <section className="card" style={{ marginBottom: "18px" }}>
-          <h3>On-Time Delivery Rate by Supplier (%)</h3>
-          <div style={{ width: "100%", height: 220, marginTop: "12px" }}>
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={chartData} margin={{ top: 10, right: 20, left: -10, bottom: 25 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="var(--chart-grid)" />
-                <XAxis dataKey="name" interval={0} angle={-15} textAnchor="end" height={45} tick={{ fontSize: 11 }} />
-                <YAxis domain={[0, 100]} tick={{ fontSize: 11 }} />
-                <Tooltip formatter={(value) => [`${value}%`, "On-Time Rate"]} />
-                <Bar dataKey="onTimePct" name="On-Time Rate %" radius={[4, 4, 0, 0]}>
-                  {chartData.map((entry) => (
-                    <Cell
-                      key={entry.name}
-                      fill={entry.risk === "High" ? "var(--danger)" : entry.risk === "Medium" ? "var(--warning)" : "var(--success)"}
-                    />
-                  ))}
-                </Bar>
-              </BarChart>
-            </ResponsiveContainer>
+      {showLoader ? (
+        <AnalysisLoader
+          steps={[
+            "Fetching purchase order history",
+            "Evaluating lead-time variance",
+            "Calculating defect rates",
+            "Generating reliability scores",
+          ]}
+          isComplete={state === "done" || state === "error"}
+          onComplete={() => setShowLoader(false)}
+        />
+      ) : state === "error" ? (
+        <div className="card" style={{ textAlign: "center", padding: "40px 20px", maxWidth: 640, margin: "32px auto" }}>
+          <div className="alert" style={{ marginBottom: 16 }}>Failed to evaluate supplier risk: {error}</div>
+          <AnalysisButton onClick={handleAnalyze} label="Retry Analysis" isRunning={state === "running"} />
+        </div>
+      ) : state === "idle" ? (
+        <AnalysisIdle
+          icon="🚚"
+          title="Analyze Supplier Reliability & Risk"
+          description="Evaluate historical lead time consistency, on-time delivery rates, and defect frequencies across all registered vendors."
+          buttonLabel="Analyze Supplier Risk"
+          onAnalyze={handleAnalyze}
+          isRunning={state === "running"}
+        />
+      ) : (
+        <AnalysisReveal analyzedAt={analyzedAt} onRerun={handleAnalyze} isRunning={state === "running"}>
+          <div className="cards" style={{ marginBottom: "18px" }}>
+            <MetricCard label="Active Suppliers" value={rows.length} sub="Monitored in catalog" tone="tone-healthy" />
+            <MetricCard label="Average Reliability" value={`${avgReliability}/100`} sub="Composite score" tone="tone-healthy" />
+            <MetricCard label="High-Risk Suppliers" value={highRiskCount} sub="Reliability below 60%" tone={highRiskCount ? "tone-critical" : "tone-healthy"} />
           </div>
-        </section>
-      )}
 
-      {risk.error && <div className="alert">{risk.error}</div>}
-      <div className="toolbar">
-        <button className="btn" disabled={!rows.length} onClick={() => {
-          const supCols = [
-            { header: "Supplier", key: "supplier_id", format: (v) => `${v} ${names[v] || ""}`.trim() },
-            ...cols.map((c) => ({
-              header: humanize(c),
-              key: c,
-              format: (v) => (c === "on_time_rate" || c === "quality_issue_rate" ? pct(v, 1) : v),
-            })),
-          ];
-          exportCsv("supplier-risk", supCols, rows);
-        }}>Export CSV</button>
-      </div>
-      <div className="table-wrap">
-        <table>
-          <thead>
-            <tr>
-              <th>Supplier</th>
-              {cols.map((c) => (
-                <th key={c} title={COL_DESCRIPTIONS[c] || humanize(c)} style={{ cursor: COL_DESCRIPTIONS[c] ? "help" : "default" }}>
-                  {humanize(c)}
-                  {COL_DESCRIPTIONS[c] && <span style={{ opacity: 0.5, marginLeft: 4, fontSize: "0.8em" }}>ℹ</span>}
-                </th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {risk.loading ? (
-              <tr><td colSpan={cols.length + 1} className="center">Loading...</td></tr>
-            ) : rows.length === 0 ? (
-              <tr><td colSpan={cols.length + 1} className="center">No supplier risk data is available yet.</td></tr>
-            ) : (
-              rows.map((r) => {
-                const s = supMap[r.supplier_id];
-                const targetId = s?._id || r.supplier_id;
-                return (
-                  <tr
-                    key={r.supplier_id}
-                    onClick={() => navigate(`/supplier-risk/${targetId}/deliveries`)}
-                    style={{ cursor: "pointer" }}
-                    title="Click to view delivery history"
-                  >
-                    <td>
-                      <Link
-                        to={`/supplier-risk/${targetId}/deliveries`}
-                        onClick={(e) => e.stopPropagation()}
-                        style={{ color: "var(--accent)", textDecoration: "none", fontWeight: 500 }}
+          {rows.length > 0 && (
+            <section className="card" style={{ marginBottom: "18px" }}>
+              <h3>On-Time Delivery Rate by Supplier (%)</h3>
+              <div style={{ width: "100%", height: 220, marginTop: "12px" }}>
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={chartData} margin={{ top: 10, right: 20, left: -10, bottom: 25 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="var(--chart-grid)" />
+                    <XAxis dataKey="name" interval={0} angle={-15} textAnchor="end" height={45} tick={{ fontSize: 11 }} />
+                    <YAxis domain={[0, 100]} tick={{ fontSize: 11 }} />
+                    <Tooltip formatter={(value) => [`${value}%`, "On-Time Rate"]} />
+                    <Bar dataKey="onTimePct" name="On-Time Rate %" radius={[4, 4, 0, 0]} isAnimationActive={false}>
+                      {chartData.map((entry) => (
+                        <Cell
+                          key={entry.name}
+                          fill={entry.risk === "High" ? "var(--danger)" : entry.risk === "Medium" ? "var(--warning)" : "var(--success)"}
+                        />
+                      ))}
+                    </Bar>
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            </section>
+          )}
+
+          <div className="toolbar">
+            <button className="btn" disabled={!rows.length} onClick={() => {
+              const supCols = [
+                { header: "Supplier", key: "supplier_id", format: (v) => `${v} ${names[v] || ""}`.trim() },
+                ...cols.map((c) => ({
+                  header: humanize(c),
+                  key: c,
+                  format: (v) => (c === "on_time_rate" || c === "quality_issue_rate" ? pct(v, 1) : v),
+                })),
+              ];
+              exportCsv("supplier-risk", supCols, rows);
+            }}>Export CSV</button>
+          </div>
+          <div className="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Supplier</th>
+                  {cols.map((c) => (
+                    <th key={c} title={COL_DESCRIPTIONS[c] || humanize(c)} style={{ cursor: COL_DESCRIPTIONS[c] ? "help" : "default" }}>
+                      {humanize(c)}
+                      {COL_DESCRIPTIONS[c] && <span style={{ opacity: 0.5, marginLeft: 4, fontSize: "0.8em" }}>ℹ</span>}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {rows.length === 0 ? (
+                  <tr><td colSpan={cols.length + 1} className="center">No supplier risk data is available yet.</td></tr>
+                ) : (
+                  rows.map((r) => {
+                    const s = supMap[r.supplier_id];
+                    const targetId = s?._id || r.supplier_id;
+                    return (
+                      <tr
+                        key={r.supplier_id}
+                        onClick={() => navigate(`/supplier-risk/${targetId}/deliveries`)}
+                        style={{ cursor: "pointer" }}
+                        title="Click to view delivery history"
                       >
-                        {r.supplier_id} {names[r.supplier_id]}
-                      </Link>
-                    </td>
-                    {cols.map((c) => <td key={c}>{cell(c, r[c])}</td>)}
-                  </tr>
-                );
-              })
-            )}
-          </tbody>
-        </table>
-      </div>
+                        <td>
+                          <Link
+                            to={`/supplier-risk/${targetId}/deliveries`}
+                            onClick={(e) => e.stopPropagation()}
+                            style={{ color: "var(--accent)", textDecoration: "none", fontWeight: 500 }}
+                          >
+                            {r.supplier_id} {names[r.supplier_id]}
+                          </Link>
+                        </td>
+                        {cols.map((c) => <td key={c}>{cell(c, r[c])}</td>)}
+                      </tr>
+                    );
+                  })
+                )}
+              </tbody>
+            </table>
+          </div>
+        </AnalysisReveal>
+      )}
     </div>
   );
 }

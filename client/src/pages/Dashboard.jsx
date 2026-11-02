@@ -16,6 +16,7 @@ import ProductCell from "../components/ProductCell";
 import { formatDate, fmtDate, num } from "../utils/format";
 import StaleDataBanner from "../components/StaleDataBanner";
 import { Bar, BarChart, CartesianGrid, Cell, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
+import { AnalysisButton, AnalysisLoader, AnalysisReveal, AnimatedNumber } from "../components/analysis";
 
 const fetchSummary = () => insightService.list();
 const TREND_PATTERNS = ["increasing", "decreasing", "stable", "seasonal", "trend + seasonal"];
@@ -113,8 +114,13 @@ export default function Dashboard() {
     .slice(0, 5);
   const hasInsights = Boolean(latest || (items.length > 0 && (critical > 0 || atRisk > 0 || reorderNow > 0 || avgHealth != null)));
 
+  const [showRefreshLoader, setShowRefreshLoader] = useState(false);
+  const [refreshComplete, setRefreshComplete] = useState(false);
+
   const refresh = async () => {
     setRefreshing(true);
+    setShowRefreshLoader(true);
+    setRefreshComplete(false);
     setMsg("");
     try {
       const r = await insightService.refresh();
@@ -139,6 +145,7 @@ export default function Dashboard() {
       toast.error(msgText);
     } finally {
       setRefreshing(false);
+      setRefreshComplete(true);
     }
   };
 
@@ -151,16 +158,14 @@ export default function Dashboard() {
           </span>
           {latest && <span className="muted small">ML computed {formatDate(latest)}</span>}
           {canWrite && (
-            <button className="btn primary" onClick={refresh} disabled={refreshing}>
-              {refreshing ? (
-                <>
-                  <span className="spinner" aria-hidden="true" />
-                  <span>Refreshing (about a minute)...</span>
-                </>
-              ) : (
-                "Refresh insights"
-              )}
-            </button>
+            <AnalysisButton
+              onClick={refresh}
+              isRunning={refreshing || showRefreshLoader}
+              isDone={Boolean(latest)}
+              label="Refresh insights"
+              rerunLabel="Refresh insights"
+              size="normal"
+            />
           )}
         </>
       } />
@@ -180,11 +185,27 @@ export default function Dashboard() {
       ) : (
         <>
           <div className="cards">
-            <Link to="/alerts" className="card-link"><MetricCard label="Critical alerts" value={critical} sub="May stock out before delivery" icon="alert" tone={critical ? "tone-critical" : "tone-healthy"} /></Link>
-            <MetricCard label="Products at risk" value={atRisk} sub="Stockout risk at 30% or more" icon="shield" tone="tone-warning" />
-            <MetricCard label="Average health" value={avgHealth == null ? "-" : num(avgHealth, 1)} sub="Out of 100" icon="trend" progress={avgHealth ?? undefined} tone="tone-healthy" />
-            <Link to="/reorder" className="card-link"><MetricCard label="Reorder now" value={reorderNow} sub="Products needing an order" icon="package" /></Link>
+            <Link to="/alerts" className="card-link"><MetricCard label="Critical alerts" value={<AnimatedNumber value={critical} />} sub="May stock out before delivery" icon="alert" tone={critical ? "tone-critical" : "tone-healthy"} /></Link>
+            <MetricCard label="Products at risk" value={<AnimatedNumber value={atRisk} />} sub="Stockout risk at 30% or more" icon="shield" tone="tone-warning" />
+            <MetricCard label="Average health" value={avgHealth == null ? "-" : <AnimatedNumber value={avgHealth} decimals={1} />} sub="Out of 100" icon="trend" progress={avgHealth ?? undefined} tone="tone-healthy" />
+            <Link to="/reorder" className="card-link"><MetricCard label="Reorder now" value={<AnimatedNumber value={reorderNow} />} sub="Products needing an order" icon="package" /></Link>
           </div>
+
+          {showRefreshLoader ? (
+            <div style={{ margin: "24px 0" }}>
+              <AnalysisLoader
+                steps={[
+                  "Syncing inventory balances & open shipments",
+                  "Computing lead-time demand & stockout probabilities",
+                  "Evaluating supplier delivery reliability",
+                  "Synthesizing catalog ABC-XYZ and trend metrics",
+                ]}
+                isComplete={refreshComplete}
+                onComplete={() => setShowRefreshLoader(false)}
+              />
+            </div>
+          ) : (
+            <AnalysisReveal analyzedAt={latest ? new Date(latest) : null}>
 
           <div className="grid2" style={{ marginBottom: "16px" }}>
             <section className="card attention-card" style={{ margin: 0 }}>
@@ -321,8 +342,10 @@ export default function Dashboard() {
               </tbody>
             </table>
           </div>
-        </>
+        </AnalysisReveal>
       )}
+    </>
+  )}
 
       <p className="muted small status-line">
         Services: server {server} | ML service {ml}
