@@ -57,3 +57,8 @@
 | `client/src/pages/SaleForm.jsx` | **POLISHED** | Integrated `useToast` notifications on recording sales. | Confirms transaction completion cleanly without page reloads. |
 | `client/src/pages/InventoryForm.jsx` | **POLISHED** | Integrated `useToast` notifications on updating stock levels. | Confirms inventory balance adjustments immediately. |
 | `client/src/pages/SupplierForm.jsx` | **POLISHED** | Integrated `useToast` notifications on supplier profile updates. | Confirms vendor registration and edits smoothly. |
+| `client/src/components/SearchBar.jsx` | **POLISHED** | Added 350ms input debouncing and clear button for instant live search. | Enables instant filtering as the user types without requiring manual form submission. |
+| `client/index.html` | **POLISHED** | Added meta description, theme-color, and OpenGraph social metadata. | Enhances SaaS web standards and search engine discoverability. |
+| `client/src/components/CommandPalette.jsx` | **ADDED** | Quick Jump / Command Palette dialog with `Ctrl+K` shortcut and keyboard navigation. | Enables lightning-fast keyboard-first navigation across all SaaS pages and tools. |
+| `client/src/components/NotificationBell.jsx` | **ADDED** | Topbar live notification bell dropdown with real-time alert count. | Surfaces critical supply chain bottlenecks (stockouts, low stock, overdue POs) at a glance. |
+| `client/src/components/Layout.jsx` | **POLISHED** | Added route document titles, offline network banner, `Ctrl+K` trigger, and alert bell. | Elevates application layout with enterprise navigation and connectivity feedback. |

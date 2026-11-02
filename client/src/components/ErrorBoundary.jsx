@@ -49,3 +49,4 @@ export default class ErrorBoundary extends Component {
     return this.props.children;
   }
 }
+

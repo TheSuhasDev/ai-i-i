@@ -4,6 +4,8 @@ import useAuth from "../context/useAuth";
 import AssistantChatProvider from "../context/AssistantChatProvider";
 import AssistantWidget from "./AssistantWidget";
 import { ProductImageProvider } from "../context/ProductImageViewer";
+import CommandPalette from "./CommandPalette";
+import NotificationBell from "./NotificationBell";
 
 const links = [
   { to: "/", label: "Dashboard", end: true },
@@ -38,10 +40,51 @@ export default function Layout() {
   const closeTimer = useRef(null);
   const sidebarRef = useRef(null);
   const toggleRef = useRef(null);
+  const [commandOpen, setCommandOpen] = useState(false);
+  const [isOnline, setIsOnline] = useState(() => (typeof navigator !== "undefined" ? navigator.onLine : true));
   const [theme, setTheme] = useState(() => {
     const saved = localStorage.getItem("inventory-theme");
     return saved || (window.matchMedia?.("(prefers-color-scheme: light)").matches ? "light" : "dark");
   });
+
+  useEffect(() => {
+    const handleOnline = () => setIsOnline(true);
+    const handleOffline = () => setIsOnline(false);
+    window.addEventListener("online", handleOnline);
+    window.addEventListener("offline", handleOffline);
+    return () => {
+      window.removeEventListener("online", handleOnline);
+      window.removeEventListener("offline", handleOffline);
+    };
+  }, []);
+
+  useEffect(() => {
+    const path = location.pathname;
+    let title = "Dashboard";
+    if (path === "/alerts") title = "Alerts";
+    else if (path === "/reorder") title = "Smart Reorder";
+    else if (path === "/trend") title = "Trend & Seasonality";
+    else if (path === "/supplier-risk") title = "Supplier Risk";
+    else if (path === "/products") title = "Products";
+    else if (path === "/products/new") title = "New Product";
+    else if (path.startsWith("/products/")) title = "Product Intelligence";
+    else if (path === "/inventory") title = "Inventory";
+    else if (path === "/inventory/new") title = "Adjust Inventory";
+    else if (path === "/sales") title = "Sales";
+    else if (path === "/sales/new") title = "Record Sale";
+    else if (path === "/suppliers") title = "Suppliers";
+    else if (path === "/suppliers/new") title = "New Supplier";
+    else if (path.includes("/deliveries")) title = "Supplier Deliveries";
+    else if (path === "/purchase-orders") title = "Purchase Orders";
+    else if (path === "/purchase-orders/new") title = "New Purchase Order";
+    else if (path === "/anomalies") title = "Anomalies";
+    else if (path === "/simulator") title = "What-If Simulator";
+    else if (path === "/performance") title = "ML Performance";
+    else if (path === "/assistant") title = "AI Assistant";
+    else if (path === "/audit-logs") title = "Audit Logs";
+    else if (path === "/settings") title = "Settings & Profile";
+    document.title = `${title} | AI Inventory Intelligence`;
+  }, [location.pathname]);
 
   useEffect(() => {
     document.documentElement.dataset.theme = theme;
@@ -149,7 +192,16 @@ export default function Layout() {
 
   useEffect(() => {
     const handleKeys = (event) => {
+      if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "k") {
+        event.preventDefault();
+        setCommandOpen((prev) => !prev);
+        return;
+      }
       if (event.key === "Escape") {
+        if (commandOpen) {
+          setCommandOpen(false);
+          return;
+        }
         if (isOverlayMode && sidebarOpen) {
           setSidebarOpen(false);
           window.setTimeout(() => toggleRef.current?.focus(), 0);
@@ -175,7 +227,7 @@ export default function Layout() {
     };
     window.addEventListener("keydown", handleKeys);
     return () => window.removeEventListener("keydown", handleKeys);
-  }, [desktopOpen, isOverlayMode, sidebarOpen, closeDesktop, cancelClose]);
+  }, [desktopOpen, isOverlayMode, sidebarOpen, closeDesktop, cancelClose, commandOpen]);
 
   useEffect(() => {
     if (isOverlayMode || !desktopOpen || !desktopPinned) return undefined;
@@ -248,6 +300,29 @@ export default function Layout() {
             </nav>
           </div>
           <div className="topbar-right">
+            <button
+              type="button"
+              className="quick-search-btn"
+              onClick={() => setCommandOpen(true)}
+              title="Quick Jump / Search (Ctrl+K)"
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: "6px",
+                background: "var(--bg-muted, rgba(255,255,255,0.06))",
+                border: "1px solid var(--border, rgba(255,255,255,0.12))",
+                color: "var(--text-muted, #94a3b8)",
+                padding: "4px 8px",
+                borderRadius: "6px",
+                fontSize: "12px",
+                cursor: "pointer",
+                marginRight: "4px",
+              }}
+            >
+              <span>🔍 Quick Jump</span>
+              <kbd style={{ fontSize: "10px", padding: "1px 4px", borderRadius: "3px", background: "rgba(0,0,0,0.2)" }}>Ctrl K</kbd>
+            </button>
+            <NotificationBell />
             <span className="topbar-user">
               <NavLink to="/settings" style={{ color: "inherit", textDecoration: "none", display: "inline-flex", alignItems: "center", gap: "8px" }} title="User Settings">
                 <span className="topbar-user-name">{user?.name}</span>
@@ -266,6 +341,12 @@ export default function Layout() {
             <button type="button" className="btn small" onClick={logout}>Logout</button>
           </div>
         </header>
+        {!isOnline && (
+          <div style={{ backgroundColor: "var(--danger, #ef4444)", color: "#fff", padding: "6px 16px", fontSize: "13px", textAlign: "center", display: "flex", justifyContent: "center", alignItems: "center", gap: "10px" }}>
+            <span>⚠️ Network connection lost. Operating in offline mode.</span>
+            <button className="btn small" style={{ background: "#fff", color: "#111", padding: "2px 8px" }} onClick={() => window.location.reload()}>Retry</button>
+          </div>
+        )}
         <AssistantChatProvider>
           <ProductImageProvider>
             <main className="content"><Outlet /></main>
@@ -273,6 +354,7 @@ export default function Layout() {
           </ProductImageProvider>
         </AssistantChatProvider>
       </div>
+      <CommandPalette isOpen={commandOpen} onClose={() => setCommandOpen(false)} />
     </div>
   );
 }
