@@ -3,6 +3,7 @@ import { Link, useNavigate, useParams } from "react-router-dom";
 import { inventoryService, productService } from "../services";
 import { errorMessage } from "../services/api";
 import Field from "../components/Field";
+import useToast from "../context/useToast";
 import { todayInput } from "../utils/format";
 import PageHeader from "../components/PageHeader";
 import ProductCell from "../components/ProductCell";
@@ -13,6 +14,7 @@ const empty = { product: "", currentStock: "", inTransitQty: 0, snapshotDate: to
 export default function InventoryForm() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const toast = useToast();
   const [form, setForm] = useState(empty);
   const [existingProduct, setExistingProduct] = useState(null);
   const [products, setProducts] = useState([]);
@@ -52,11 +54,18 @@ export default function InventoryForm() {
       snapshotDate: form.snapshotDate,
     };
     try {
-      if (id) await inventoryService.update(id, payload);
-      else await inventoryService.create({ ...payload, product: form.product });
+      if (id) {
+        await inventoryService.update(id, payload);
+        toast.success("Inventory stock level updated");
+      } else {
+        await inventoryService.create({ ...payload, product: form.product });
+        toast.success("Inventory record created");
+      }
       navigate("/inventory");
     } catch (err) {
-      setError(errorMessage(err));
+      const msg = errorMessage(err);
+      setError(msg);
+      toast.error(msg);
       setBusy(false);
     }
   };

@@ -1,7 +1,18 @@
 import { useNavigate, Link } from "react-router-dom";
+import {
+  Bar,
+  BarChart,
+  CartesianGrid,
+  Cell,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from "recharts";
 import { insightService, supplierService } from "../services";
 import useFetch from "../hooks/useFetch";
 import Pill from "../components/Pill";
+import MetricCard from "../components/MetricCard";
 import { humanize, num, pct } from "../utils/format";
 import PageHeader from "../components/PageHeader";
 import { exportCsv } from "../utils/exportCsv";
@@ -50,12 +61,52 @@ export default function SupplierRisk() {
   );
   const cols = [...PREFERRED.filter((k) => keys.includes(k)), ...keys.filter((k) => !PREFERRED.includes(k))];
 
+  const chartData = rows.map((r) => ({
+    name: `${r.supplier_id} ${names[r.supplier_id] || ""}`,
+    onTimePct: Math.round((r.on_time_rate || 0) * 100),
+    reliability: Math.round(r.reliability_score || 0),
+    risk: r.risk_level,
+  }));
+  const avgReliability = rows.length ? Math.round(rows.reduce((s, r) => s + (r.reliability_score || 0), 0) / rows.length) : 0;
+  const highRiskCount = rows.filter((r) => r.risk_level === "High").length;
+
   return (
     <div>
       <PageHeader
         title="Supplier Risk"
         subtitle="Supplier reliability scores and delivery performance. Reliability Score (0–100) measures performance; Risk Level categorizes risk. Click a supplier to view delivery history."
       />
+
+      <div className="cards" style={{ marginBottom: "18px" }}>
+        <MetricCard label="Active Suppliers" value={rows.length} sub="Monitored in catalog" tone="tone-healthy" />
+        <MetricCard label="Average Reliability" value={`${avgReliability}/100`} sub="Composite score" tone="tone-healthy" />
+        <MetricCard label="High-Risk Suppliers" value={highRiskCount} sub="Reliability below 60%" tone={highRiskCount ? "tone-critical" : "tone-healthy"} />
+      </div>
+
+      {rows.length > 0 && (
+        <section className="card" style={{ marginBottom: "18px" }}>
+          <h3>On-Time Delivery Rate by Supplier (%)</h3>
+          <div style={{ width: "100%", height: 220, marginTop: "12px" }}>
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={chartData} margin={{ top: 10, right: 20, left: -10, bottom: 25 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="var(--chart-grid)" />
+                <XAxis dataKey="name" interval={0} angle={-15} textAnchor="end" height={45} tick={{ fontSize: 11 }} />
+                <YAxis domain={[0, 100]} tick={{ fontSize: 11 }} />
+                <Tooltip formatter={(value) => [`${value}%`, "On-Time Rate"]} />
+                <Bar dataKey="onTimePct" name="On-Time Rate %" radius={[4, 4, 0, 0]}>
+                  {chartData.map((entry) => (
+                    <Cell
+                      key={entry.name}
+                      fill={entry.risk === "High" ? "var(--danger)" : entry.risk === "Medium" ? "var(--warning)" : "var(--success)"}
+                    />
+                  ))}
+                </Bar>
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        </section>
+      )}
+
       {risk.error && <div className="alert">{risk.error}</div>}
       <div className="toolbar">
         <button className="btn" disabled={!rows.length} onClick={() => {

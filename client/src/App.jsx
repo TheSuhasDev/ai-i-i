@@ -1,5 +1,5 @@
 import { lazy, Suspense } from "react";
-import { Navigate, Route, Routes } from "react-router-dom";
+import { Route, Routes } from "react-router-dom";
 import ProtectedRoute from "./components/ProtectedRoute";
 import Layout from "./components/Layout";
 
@@ -25,6 +25,9 @@ const Anomalies = lazy(() => import("./pages/Anomalies"));
 const Simulator = lazy(() => import("./pages/Simulator"));
 const ModelPerformance = lazy(() => import("./pages/ModelPerformance"));
 const Assistant = lazy(() => import("./pages/Assistant"));
+const AuditLogs = lazy(() => import("./pages/AuditLogs"));
+const Settings = lazy(() => import("./pages/Settings"));
+const NotFound = lazy(() => import("./pages/NotFound"));
 
 export default function App() {
   return (
@@ -53,6 +56,12 @@ export default function App() {
           <Route path="performance" element={<ModelPerformance />} />
           <Route path="assistant" element={<Assistant />} />
           <Route path="purchase-orders" element={<PurchaseOrderList />} />
+          <Route path="settings" element={<Settings />} />
+
+          {/* admin only */}
+          <Route element={<ProtectedRoute roles={["admin"]} />}>
+            <Route path="audit-logs" element={<AuditLogs />} />
+          </Route>
 
           {/* admin and manager only */}
           <Route element={<ProtectedRoute roles={["admin", "manager"]} />}>
@@ -65,10 +74,12 @@ export default function App() {
             <Route path="purchase-orders/new" element={<PurchaseOrderForm />} />
             <Route path="purchase-orders/:id/edit" element={<PurchaseOrderForm />} />
           </Route>
+
+          <Route path="*" element={<NotFound />} />
         </Route>
       </Route>
 
-      <Route path="*" element={<Navigate to="/" replace />} />
+      <Route path="*" element={<NotFound />} />
     </Routes>
     </Suspense>
   );

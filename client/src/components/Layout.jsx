@@ -21,10 +21,13 @@ const links = [
   { to: "/simulator", label: "What-If Simulator" },
   { to: "/performance", label: "ML Performance" },
   { to: "/assistant", label: "AI Assistant" },
+  { section: "Management" },
+  { to: "/audit-logs", label: "Audit Logs", adminOnly: true },
+  { to: "/settings", label: "Settings & Profile" },
 ];
 
 export default function Layout() {
-  const { user, logout } = useAuth();
+  const { user, logout, isAdmin } = useAuth();
   const location = useLocation();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [desktopOpen, setDesktopOpen] = useState(false);
@@ -206,34 +209,62 @@ export default function Layout() {
       >
         <div className="brand">AI Inventory<br />Intelligence</div>
         <nav>
-          {links.map((l) =>
-            l.section ? (
-              <div key={l.section} className="nav-section">{l.section}</div>
-            ) : (
-          <NavLink key={l.to} to={l.to} end={l.end} onClick={closeSidebar}>{l.label}</NavLink>
-            )
-          )}
+          {links
+            .filter((l) => !l.adminOnly || isAdmin)
+            .map((l) =>
+              l.section ? (
+                <div key={l.section} className="nav-section">{l.section}</div>
+              ) : (
+                <NavLink key={l.to} to={l.to} end={l.end} onClick={closeSidebar}>{l.label}</NavLink>
+              )
+            )}
         </nav>
       </aside>
       <div className="main">
         <header className="topbar">
-          <button
-            type="button"
-            className="mobile-menu-button"
-            ref={toggleRef}
-            aria-label={sidebarToggleTitle}
-            aria-expanded={sidebarExpanded}
-            aria-controls="primary-navigation"
-            onClick={toggleSidebar}
-            title={sidebarToggleTitle}
-          >
-            {sidebarExpanded ? "✕" : "☰"}
-          </button>
-          <span className="topbar-user"><span className="topbar-user-name">{user.name}</span><span className="badge">{user.role}</span></span>
-          <button type="button" className="theme-toggle" onClick={() => setTheme((value) => value === "dark" ? "light" : "dark")} aria-label={`Switch to ${theme === "dark" ? "light" : "dark"} theme`} title={`Switch to ${theme === "dark" ? "light" : "dark"} theme`}>
-            {theme === "dark" ? "☼" : "◐"}
-          </button>
-          <button className="btn" onClick={logout}>Logout</button>
+          <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+            <button
+              type="button"
+              className="mobile-menu-button"
+              ref={toggleRef}
+              aria-label={sidebarToggleTitle}
+              aria-expanded={sidebarExpanded}
+              aria-controls="primary-navigation"
+              onClick={toggleSidebar}
+              title={sidebarToggleTitle}
+            >
+              {sidebarExpanded ? "✕" : "☰"}
+            </button>
+            <nav className="breadcrumbs" aria-label="Breadcrumb">
+              <NavLink to="/">Home</NavLink>
+              {location.pathname !== "/" && (
+                <>
+                  <span className="breadcrumb-separator">/</span>
+                  <span className="breadcrumb-current">
+                    {location.pathname.slice(1).split("/")[0].replace(/-/g, " ").replace(/\b\w/g, (c) => c.toUpperCase())}
+                  </span>
+                </>
+              )}
+            </nav>
+          </div>
+          <div className="topbar-right">
+            <span className="topbar-user">
+              <NavLink to="/settings" style={{ color: "inherit", textDecoration: "none", display: "inline-flex", alignItems: "center", gap: "8px" }} title="User Settings">
+                <span className="topbar-user-name">{user?.name}</span>
+                <span className={`role-badge ${user?.role || "staff"}`}>{user?.role}</span>
+              </NavLink>
+            </span>
+            <button
+              type="button"
+              className="theme-toggle"
+              onClick={() => setTheme((value) => (value === "dark" ? "light" : "dark"))}
+              aria-label={`Switch to ${theme === "dark" ? "light" : "dark"} theme`}
+              title={`Switch to ${theme === "dark" ? "light" : "dark"} theme`}
+            >
+              {theme === "dark" ? "☼" : "◐"}
+            </button>
+            <button type="button" className="btn small" onClick={logout}>Logout</button>
+          </div>
         </header>
         <AssistantChatProvider>
           <ProductImageProvider>

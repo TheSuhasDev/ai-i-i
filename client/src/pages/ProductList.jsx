@@ -1,12 +1,15 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import useAuth from "../context/useAuth";
+import useToast from "../context/useToast";
 import useList from "../hooks/useList";
 import { productService } from "../services";
 import { errorMessage } from "../services/api";
 import SearchBar from "../components/SearchBar";
 import Pagination from "../components/Pagination";
-import { CATEGORIES, money } from "../utils/format";
+import ConfirmModal from "../components/ConfirmModal";
+import MetricCard from "../components/MetricCard";
+import { CATEGORIES, money, num } from "../utils/format";
 import PageHeader from "../components/PageHeader";
 import ProductCell from "../components/ProductCell";
 import { exportCsv } from "../utils/exportCsv";
@@ -23,21 +26,31 @@ const PRODUCT_COLS = [
 
 export default function ProductList() {
   const { canWrite, isAdmin } = useAuth();
+  const toast = useToast();
   const { data, pagination, loading, error, params, filter, setPage, reload } = useList(productService, {
     sort: "code",
   });
   const [actionError, setActionError] = useState("");
+  const [deleteTarget, setDeleteTarget] = useState(null);
 
-  const remove = async (p) => {
-    if (!window.confirm(`Delete product "${p.name}"?`)) return;
+  const confirmRemove = async () => {
+    if (!deleteTarget) return;
     try {
-      await productService.remove(p._id);
+      await productService.remove(deleteTarget._id);
       setActionError("");
+      toast.success(`Product "${deleteTarget.name}" deleted`);
+      setDeleteTarget(null);
       reload();
     } catch (e) {
-      setActionError(errorMessage(e));
+      const msg = errorMessage(e);
+      setActionError(msg);
+      toast.error(msg);
+      setDeleteTarget(null);
     }
   };
+
+  const activeCount = data.filter((p) => p.isActive !== false).length;
+  const avgLeadTime = data.length ? data.reduce((s, p) => s + (p.leadTimeDays || 0), 0) / data.length : 0;
 
   return (
     <div>
@@ -46,6 +59,12 @@ export default function ProductList() {
             + Add product
           </Link>
         )} />
+
+      <div className="cards" style={{ marginBottom: "16px" }}>
+        <MetricCard label="Products Listed" value={pagination?.total || data.length} sub="Catalog entries" tone="tone-healthy" />
+        <MetricCard label="Active Items" value={activeCount} sub="Available for reorder" tone="tone-healthy" />
+        <MetricCard label="Average Lead Time" value={`${num(avgLeadTime, 1)} d`} sub="Supplier procurement cycle" tone="tone-healthy" />
+      </div>
 
       <div className="toolbar">
         <SearchBar onSearch={(search) => filter({ search })} placeholder="Search name, SKU or code" />
@@ -92,7 +111,7 @@ export default function ProductList() {
                   {canWrite && (
                     <td className="actions">
                       <Link className="btn small" to={`/products/${p._id}/edit`}>Edit</Link>
-                      {isAdmin && <button className="btn small danger" onClick={() => remove(p)}>Delete</button>}
+                      {isAdmin && <button className="btn small danger" onClick={() => setDeleteTarget(p)}>Delete</button>}
                     </td>
                   )}
                 </tr>
@@ -102,6 +121,16 @@ export default function ProductList() {
         </table>
       </div>
       <Pagination pagination={pagination} onPage={setPage} />
+
+      <ConfirmModal
+        isOpen={Boolean(deleteTarget)}
+        title="Delete product"
+        message={`Are you sure you want to permanently delete product "${deleteTarget?.name}" (${deleteTarget?.code})?`}
+        confirmLabel="Delete product"
+        isDanger={true}
+        onConfirm={confirmRemove}
+        onCancel={() => setDeleteTarget(null)}
+      />
     </div>
   );
 }

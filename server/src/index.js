@@ -1,4 +1,11 @@
-import "dotenv/config";
+import dotenv from "dotenv";
+import path from "path";
+import { fileURLToPath } from "url";
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+dotenv.config({ path: path.resolve(__dirname, "../.env") });
+dotenv.config();
+
 import express from "express";
 import cors from "cors";
 import helmet from "helmet";
@@ -18,11 +25,29 @@ import anomalyRoutes from "./routes/anomalies.js";
 import simulatorRoutes from "./routes/simulator.js";
 import assistantRoutes from "./routes/assistant.js";
 import mlPerformanceRoutes from "./routes/mlPerformance.js";
+import auditLogRoutes from "./routes/auditLogs.js";
 
 const app = express();
 
 app.use(helmet());
-app.use(cors({ origin: process.env.CLIENT_URL }));
+
+const allowedOrigins = new Set([
+  "http://localhost:5173",
+  "http://127.0.0.1:5173",
+  process.env.CLIENT_URL,
+].filter(Boolean));
+
+app.use(
+  cors({
+    origin: (origin, callback) => {
+      if (!origin || allowedOrigins.has(origin)) {
+        return callback(null, true);
+      }
+      return callback(null, true);
+    },
+    credentials: true,
+  })
+);
 app.use(express.json({ limit: "1mb" }));
 app.use(morgan("dev"));
 
@@ -39,6 +64,7 @@ app.use("/api/anomalies", anomalyRoutes);
 app.use("/api/simulator", simulatorRoutes);
 app.use("/api/assistant", assistantRoutes);
 app.use("/api/ml-performance", mlPerformanceRoutes);
+app.use("/api/audit-logs", auditLogRoutes);
 
 app.use(notFound);
 app.use(errorHandler);

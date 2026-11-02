@@ -3,6 +3,7 @@ import { Link, useNavigate, useParams } from "react-router-dom";
 import { productService, supplierService } from "../services";
 import { errorMessage } from "../services/api";
 import Field from "../components/Field";
+import useToast from "../context/useToast";
 import { CATEGORIES } from "../utils/format";
 import PageHeader from "../components/PageHeader";
 import ProductThumb from "../components/ProductThumb";
@@ -15,6 +16,7 @@ const empty = {
 export default function ProductForm() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const toast = useToast();
   const [form, setForm] = useState(empty);
   const [allSuppliers, setAllSuppliers] = useState([]);
   const [error, setError] = useState("");
@@ -51,11 +53,18 @@ export default function ProductForm() {
       suppliers: form.suppliers, isActive: form.isActive,
     };
     try {
-      if (id) await productService.update(id, payload);
-      else await productService.create(payload);
+      if (id) {
+        await productService.update(id, payload);
+        toast.success(`Product "${payload.name}" updated successfully`);
+      } else {
+        await productService.create(payload);
+        toast.success(`Product "${payload.name}" created successfully`);
+      }
       navigate("/products");
     } catch (err) {
-      setError(errorMessage(err));
+      const msg = errorMessage(err);
+      setError(msg);
+      toast.error(msg);
       setBusy(false);
     }
   };

@@ -4,12 +4,14 @@ import { supplierService } from "../services";
 import { errorMessage } from "../services/api";
 import PageHeader from "../components/PageHeader";
 import Field from "../components/Field";
+import useToast from "../context/useToast";
 
 const empty = { code: "", name: "", contactEmail: "", city: "" };
 
 export default function SupplierForm() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const toast = useToast();
   const [form, setForm] = useState(empty);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
@@ -30,11 +32,18 @@ export default function SupplierForm() {
     setError("");
     const payload = { code: form.code, name: form.name, contactEmail: form.contactEmail, city: form.city };
     try {
-      if (id) await supplierService.update(id, payload);
-      else await supplierService.create(payload);
+      if (id) {
+        await supplierService.update(id, payload);
+        toast.success(`Supplier "${payload.name}" updated`);
+      } else {
+        await supplierService.create(payload);
+        toast.success(`Supplier "${payload.name}" created`);
+      }
       navigate("/suppliers");
     } catch (err) {
-      setError(errorMessage(err));
+      const msg = errorMessage(err);
+      setError(msg);
+      toast.error(msg);
       setBusy(false);
     }
   };

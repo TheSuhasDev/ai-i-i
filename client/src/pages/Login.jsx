@@ -87,7 +87,7 @@ export default function Login() {
         </button>
         <div style={{ marginTop: "16px", paddingTop: "12px", borderTop: "1px solid var(--border)", display: "flex", flexDirection: "column", gap: "6px" }}>
           <span style={{ fontSize: "11px", color: "var(--muted)", textTransform: "uppercase", letterSpacing: "0.06em", fontWeight: 650 }}>Quick Demo Fill</span>
-          <div style={{ display: "flex", gap: "8px" }}>
+          <div style={{ display: "flex", gap: "6px" }}>
             <button
               type="button"
               className="btn small"
@@ -98,6 +98,17 @@ export default function Login() {
               }}
             >
               Admin
+            </button>
+            <button
+              type="button"
+              className="btn small"
+              style={{ flex: 1 }}
+              onClick={() => {
+                setEmail("manager@inventory.com");
+                setPassword("Manager@123");
+              }}
+            >
+              Manager
             </button>
             <button
               type="button"

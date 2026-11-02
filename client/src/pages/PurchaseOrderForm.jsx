@@ -3,6 +3,8 @@ import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom"
 import { productService, supplierService, purchaseOrderService, insightService } from "../services";
 import { errorMessage } from "../services/api";
 import Field from "../components/Field";
+import ConfirmModal from "../components/ConfirmModal";
+import useToast from "../context/useToast";
 import { PO_STATUSES, addDaysInput, toDateInput, todayInput } from "../utils/format";
 import PageHeader from "../components/PageHeader";
 import ProductSelect from "../components/ProductSelect";
@@ -17,12 +19,14 @@ export default function PurchaseOrderForm() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const prefill = searchParams.toString();
+  const toast = useToast();
   const [form, setForm] = useState(empty);
   const [products, setProducts] = useState([]);
   const [suppliers, setSuppliers] = useState([]);
   const [supplierRisk, setSupplierRisk] = useState([]);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
+  const [duplicatePrompt, setDuplicatePrompt] = useState(null);
 
   useEffect(() => {
     Promise.all([
@@ -108,26 +112,39 @@ export default function PurchaseOrderForm() {
     try {
       if (id) {
         await purchaseOrderService.update(id, payload);
+        toast.success(`Purchase order ${payload.poNumber} updated`);
       } else {
         await purchaseOrderService.create(payload);
+        toast.success(`Purchase order ${payload.poNumber} created`);
       }
       navigate("/purchase-orders");
     } catch (err) {
       if (err.response?.status === 409 && err.response?.data?.code === "DUPLICATE_OPEN_PO") {
         const msg = err.response.data.message || "An open purchase order already exists for this product.";
-        if (window.confirm(`${msg}\n\nDo you want to proceed and create another purchase order anyway?`)) {
-          try {
-            await purchaseOrderService.create({ ...payload, confirmDuplicate: true });
-            navigate("/purchase-orders");
-            return;
-          } catch (retryErr) {
-            setError(errorMessage(retryErr));
-          }
-        }
+        setDuplicatePrompt({ payload, msg });
       } else {
-        setError(errorMessage(err));
+        const msg = errorMessage(err);
+        setError(msg);
+        toast.error(msg);
       }
       setBusy(false);
+    }
+  };
+
+  const confirmDuplicatePO = async () => {
+    if (!duplicatePrompt) return;
+    setBusy(true);
+    try {
+      await purchaseOrderService.create({ ...duplicatePrompt.payload, confirmDuplicate: true });
+      toast.success(`Purchase order ${duplicatePrompt.payload.poNumber} created`);
+      setDuplicatePrompt(null);
+      navigate("/purchase-orders");
+    } catch (retryErr) {
+      const msg = errorMessage(retryErr);
+      setError(msg);
+      toast.error(msg);
+      setBusy(false);
+      setDuplicatePrompt(null);
     }
   };
 
@@ -211,6 +228,19 @@ export default function PurchaseOrderForm() {
           <Link className="btn" to="/purchase-orders">Cancel</Link>
         </div>
       </form>
+
+      <ConfirmModal
+        isOpen={Boolean(duplicatePrompt)}
+        title="Duplicate Open Purchase Order"
+        message={`${duplicatePrompt?.msg || "An open purchase order already exists for this product."} Do you want to proceed and create another purchase order anyway?`}
+        confirmLabel="Create anyway"
+        isDanger={false}
+        onConfirm={confirmDuplicatePO}
+        onCancel={() => {
+          setDuplicatePrompt(null);
+          setBusy(false);
+        }}
+      />
     </div>
   );
 }

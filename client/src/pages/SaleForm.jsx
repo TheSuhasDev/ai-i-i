@@ -3,6 +3,7 @@ import { Link, useNavigate, useParams } from "react-router-dom";
 import { productService, saleService } from "../services";
 import { errorMessage } from "../services/api";
 import Field from "../components/Field";
+import useToast from "../context/useToast";
 import { money, toDateInput, todayInput } from "../utils/format";
 import PageHeader from "../components/PageHeader";
 import ProductSelect from "../components/ProductSelect";
@@ -12,6 +13,7 @@ const empty = { product: "", date: todayInput(), unitsSold: "", unitPrice: "", p
 export default function SaleForm() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const toast = useToast();
   const [form, setForm] = useState(empty);
   const [products, setProducts] = useState([]);
   const [error, setError] = useState("");
@@ -59,11 +61,18 @@ export default function SaleForm() {
       promoFlag: form.promoFlag,
     };
     try {
-      if (id) await saleService.update(id, payload);
-      else await saleService.create(payload);
+      if (id) {
+        await saleService.update(id, payload);
+        toast.success("Sale record updated successfully");
+      } else {
+        await saleService.create(payload);
+        toast.success("Sale recorded successfully");
+      }
       navigate("/sales");
     } catch (err) {
-      setError(errorMessage(err));
+      const msg = errorMessage(err);
+      setError(msg);
+      toast.error(msg);
       setBusy(false);
     }
   };

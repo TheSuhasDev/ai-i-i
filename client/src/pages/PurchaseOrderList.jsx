@@ -1,11 +1,14 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import useAuth from "../context/useAuth";
+import useToast from "../context/useToast";
 import useList from "../hooks/useList";
 import { purchaseOrderService } from "../services";
 import { errorMessage } from "../services/api";
 import SearchBar from "../components/SearchBar";
 import Pagination from "../components/Pagination";
+import ConfirmModal from "../components/ConfirmModal";
+import MetricCard from "../components/MetricCard";
 import { PO_STATUSES, fmtDate, normalizePoNumber } from "../utils/format";
 import PageHeader from "../components/PageHeader";
 import Pill from "../components/Pill";
@@ -41,36 +44,59 @@ function getOverdueDays(po) {
 
 export default function PurchaseOrderList() {
   const { canWrite, isAdmin } = useAuth();
+  const toast = useToast();
   const { data, pagination, loading, error, params, filter, setPage, reload } = useList(purchaseOrderService, {
     sort: "-orderDate",
   });
   const [actionError, setActionError] = useState("");
+  const [cancelTarget, setCancelTarget] = useState(null);
+  const [deleteTarget, setDeleteTarget] = useState(null);
 
-  const cancel = async (po) => {
-    if (!window.confirm(`Cancel purchase order ${po.poNumber}? This cannot be undone.`)) return;
+  const confirmCancel = async () => {
+    if (!cancelTarget) return;
     try {
-      await purchaseOrderService.cancel(po._id);
+      await purchaseOrderService.cancel(cancelTarget._id);
       setActionError("");
+      toast.success(`Purchase order ${cancelTarget.poNumber} cancelled`);
+      setCancelTarget(null);
       reload();
     } catch (e) {
-      setActionError(errorMessage(e));
+      const msg = errorMessage(e);
+      setActionError(msg);
+      toast.error(msg);
+      setCancelTarget(null);
     }
   };
 
-  const remove = async (po) => {
-    if (!window.confirm(`Permanently delete cancelled order ${po.poNumber}?`)) return;
+  const confirmRemove = async () => {
+    if (!deleteTarget) return;
     try {
-      await purchaseOrderService.remove(po._id);
+      await purchaseOrderService.remove(deleteTarget._id);
       setActionError("");
+      toast.success(`Cancelled order ${deleteTarget.poNumber} deleted`);
+      setDeleteTarget(null);
       reload();
     } catch (e) {
-      setActionError(errorMessage(e));
+      const msg = errorMessage(e);
+      setActionError(msg);
+      toast.error(msg);
+      setDeleteTarget(null);
     }
   };
+
+  const openOrders = data.filter((po) => ["Pending", "Approved", "In Transit"].includes(po.status)).length;
+  const inTransitOrders = data.filter((po) => po.status === "In Transit").length;
+  const overdueCount = data.filter((po) => getOverdueDays(po) > 0).length;
 
   return (
     <div>
       <PageHeader title="Purchase Orders" subtitle="Track open, delivered, and cancelled supplier orders." actions={canWrite && <Link className="btn primary" to="/purchase-orders/new">+ Add purchase order</Link>} />
+
+      <div className="cards" style={{ marginBottom: "16px" }}>
+        <MetricCard label="Open Purchase Orders" value={openOrders} sub="Awaiting full receipt" tone="tone-healthy" />
+        <MetricCard label="Shipments In Transit" value={inTransitOrders} sub="En route from suppliers" tone="tone-healthy" />
+        <MetricCard label="Overdue Deliveries" value={overdueCount} sub="Past expected arrival date" tone={overdueCount ? "tone-critical" : "tone-healthy"} />
+      </div>
 
       <div className="toolbar">
         <SearchBar onSearch={(search) => filter({ search })} placeholder="Search PO number" />
@@ -124,8 +150,8 @@ export default function PurchaseOrderList() {
                   {canWrite && (
                     <td className="actions sticky-actions-col">
                       <Link className="btn small" to={`/purchase-orders/${po._id}/edit`}>Edit</Link>
-                      {canCancel && <button className="btn small warning" onClick={() => cancel(po)}>Cancel</button>}
-                      {canDelete && <button className="btn small danger" onClick={() => remove(po)}>Delete</button>}
+                      {canCancel && <button className="btn small warning" onClick={() => setCancelTarget(po)}>Cancel</button>}
+                      {canDelete && <button className="btn small danger" onClick={() => setDeleteTarget(po)}>Delete</button>}
                     </td>
                   )}
                 </tr>
@@ -136,6 +162,26 @@ export default function PurchaseOrderList() {
         </table>
       </div>
       <Pagination pagination={pagination} onPage={setPage} />
+
+      <ConfirmModal
+        isOpen={Boolean(cancelTarget)}
+        title="Cancel purchase order"
+        message={`Are you sure you want to cancel purchase order ${cancelTarget?.poNumber}? This will remove it from on-order inventory quantities.`}
+        confirmLabel="Cancel order"
+        isDanger={true}
+        onConfirm={confirmCancel}
+        onCancel={() => setCancelTarget(null)}
+      />
+
+      <ConfirmModal
+        isOpen={Boolean(deleteTarget)}
+        title="Delete purchase order"
+        message={`Are you sure you want to permanently delete cancelled order ${deleteTarget?.poNumber}?`}
+        confirmLabel="Delete order"
+        isDanger={true}
+        onConfirm={confirmRemove}
+        onCancel={() => setDeleteTarget(null)}
+      />
     </div>
   );
 }

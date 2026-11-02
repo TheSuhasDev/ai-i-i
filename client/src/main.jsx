@@ -5,16 +5,23 @@ import "@fontsource/inter";
 import "./index.css";
 import App from "./App.jsx";
 import AuthProvider from "./context/AuthProvider.jsx";
+import ToastProvider from "./context/ToastContext.jsx";
+import ErrorBoundary from "./components/ErrorBoundary.jsx";
 
 const savedTheme = localStorage.getItem("inventory-theme");
-document.documentElement.dataset.theme = savedTheme || (window.matchMedia?.("(prefers-color-scheme: light)").matches ? "light" : "dark");
+document.documentElement.dataset.theme =
+  savedTheme || (window.matchMedia?.("(prefers-color-scheme: light)").matches ? "light" : "dark");
 
 createRoot(document.getElementById("root")).render(
   <StrictMode>
-    <BrowserRouter>
-      <AuthProvider>
-        <App />
-      </AuthProvider>
-    </BrowserRouter>
+    <ErrorBoundary>
+      <BrowserRouter>
+        <AuthProvider>
+          <ToastProvider>
+            <App />
+          </ToastProvider>
+        </AuthProvider>
+      </BrowserRouter>
+    </ErrorBoundary>
   </StrictMode>
 );

@@ -4,6 +4,7 @@ import axios from "axios";
 import api, { errorMessage } from "../services/api";
 import { insightService } from "../services";
 import useAuth from "../context/useAuth";
+import useToast from "../context/useToast";
 import useFetch from "../hooks/useFetch";
 import HealthChart from "../components/HealthChart";
 import AbcXyzMatrix from "../components/AbcXyzMatrix";
@@ -49,17 +50,25 @@ function TrendLeaders({ title, items, emptyText }) {
 
 export default function Dashboard() {
   const { canWrite } = useAuth();
+  const toast = useToast();
   const { data, loading, error, reload } = useFetch(fetchSummary);
   const [refreshing, setRefreshing] = useState(false);
   const [msg, setMsg] = useState("");
   const [msgType, setMsgType] = useState("info");
   const [server, setServer] = useState("loading");
   const [ml, setMl] = useState("loading");
+  const [lastChecked, setLastChecked] = useState(() => new Date());
 
   useEffect(() => {
     api.get("/health").then((r) => setServer(r.data.status)).catch(() => setServer("down"));
     axios.get(`${import.meta.env.VITE_ML_URL}/health`).then((r) => setMl(r.data.status)).catch(() => setMl("down"));
-  }, []);
+
+    const pollInterval = setInterval(() => {
+      reload();
+      setLastChecked(new Date());
+    }, 60000);
+    return () => clearInterval(pollInterval);
+  }, [reload]);
 
   const items = data?.data ?? [];
   const critical = items.filter((i) => i.priority === "Critical").length;
@@ -101,16 +110,23 @@ export default function Dashboard() {
       const r = await insightService.refresh();
       const d = r.data.data;
       if (d.failed?.length) {
-        setMsg(`Refreshed ${d.ok} of ${d.total} products (${d.failed.length} failed).`);
+        const errorText = `Refreshed ${d.ok} of ${d.total} products (${d.failed.length} failed).`;
+        setMsg(errorText);
         setMsgType("error");
+        toast.warning(errorText);
       } else {
-        setMsg(`Successfully refreshed ${d.ok} of ${d.total} products.`);
+        const successText = `Successfully refreshed ${d.ok} of ${d.total} products.`;
+        setMsg(successText);
         setMsgType("ok");
+        toast.success(successText);
       }
       reload();
+      setLastChecked(new Date());
     } catch (e) {
-      setMsg(errorMessage(e));
+      const msgText = errorMessage(e);
+      setMsg(msgText);
       setMsgType("error");
+      toast.error(msgText);
     } finally {
       setRefreshing(false);
     }
@@ -120,7 +136,10 @@ export default function Dashboard() {
     <div>
       <PageHeader title="Dashboard" subtitle="A quick view of inventory health, stockout risk, and products that need attention." actions={
         <>
-          {latest && <span className="muted small">Last computed {formatDate(latest)}</span>}
+          <span className="muted small" title="Auto-refreshes every 60s">
+            Live • Checked {lastChecked.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+          </span>
+          {latest && <span className="muted small">ML computed {formatDate(latest)}</span>}
           {canWrite && (
             <button className="btn primary" onClick={refresh} disabled={refreshing}>
               {refreshing ? (

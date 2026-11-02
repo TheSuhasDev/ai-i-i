@@ -19,14 +19,11 @@ export function withDelay(data, existing = {}) {
   if (actual && expected) {
     if (out.delayDays === undefined) {
       const rawDelay = Math.round((new Date(actual) - new Date(expected)) / DAY);
-      out.delayDays = Math.max(0, rawDelay);
+      out.delayDays = rawDelay;
     }
     if (!out.status) out.status = "Delivered";
   }
   if (out.status === "Delivered") {
-    if (out.delayDays != null && out.delayDays < 0) {
-      out.delayDays = 0;
-    }
     if (!out.qtyReceived || Number(out.qtyReceived) === 0) {
       const ordered = out.qtyOrdered ?? existing.qtyOrdered;
       if (ordered) out.qtyReceived = ordered;

@@ -102,8 +102,8 @@ const router = Router();
 router.use(protect);
 router.get("/", crud.list);
 router.get("/:id", crud.getOne);
-router.post("/", authorize(...ADMIN_ONLY), validate(saleCreate), auditCreate(crud.create));
-router.put("/:id", authorize(...ADMIN_ONLY), validate(saleUpdate), auditUpdate(crud.update));
+router.post("/", authorize("admin", "manager", "staff"), validate(saleCreate), auditCreate(crud.create));
+router.put("/:id", authorize("admin", "manager"), validate(saleUpdate), auditUpdate(crud.update));
 router.delete("/:id", authorize(...ADMIN_ONLY), auditDelete(crud.remove));
 
 export default router;

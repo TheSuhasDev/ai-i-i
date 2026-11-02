@@ -1,32 +1,49 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import useAuth from "../context/useAuth";
+import useToast from "../context/useToast";
 import useList from "../hooks/useList";
 import { supplierService } from "../services";
 import { errorMessage } from "../services/api";
 import SearchBar from "../components/SearchBar";
 import Pagination from "../components/Pagination";
+import ConfirmModal from "../components/ConfirmModal";
+import MetricCard from "../components/MetricCard";
 import PageHeader from "../components/PageHeader";
 
 export default function SupplierList() {
   const { canWrite, isAdmin } = useAuth();
+  const toast = useToast();
   const { data, pagination, loading, error, filter, setPage, reload } = useList(supplierService, { sort: "code" });
   const [actionError, setActionError] = useState("");
+  const [deleteTarget, setDeleteTarget] = useState(null);
 
-  const remove = async (s) => {
-    if (!window.confirm(`Delete supplier "${s.name}"?`)) return;
+  const confirmRemove = async () => {
+    if (!deleteTarget) return;
     try {
-      await supplierService.remove(s._id);
+      await supplierService.remove(deleteTarget._id);
       setActionError("");
+      toast.success(`Supplier "${deleteTarget.name}" deleted`);
+      setDeleteTarget(null);
       reload();
     } catch (e) {
-      setActionError(errorMessage(e));
+      const msg = errorMessage(e);
+      setActionError(msg);
+      toast.error(msg);
+      setDeleteTarget(null);
     }
   };
+
+  const citiesCount = new Set(data.map((s) => s.city).filter(Boolean)).size;
 
   return (
     <div>
       <PageHeader title="Suppliers" subtitle="Manage supplier records and review delivery performance." actions={canWrite && <Link className="btn primary" to="/suppliers/new">+ Add supplier</Link>} />
+
+      <div className="cards" style={{ marginBottom: "16px" }}>
+        <MetricCard label="Registered Suppliers" value={pagination?.total || data.length} sub="Approved vendor partners" tone="tone-healthy" />
+        <MetricCard label="Supply Hubs" value={citiesCount} sub="Geographic locations" tone="tone-healthy" />
+      </div>
 
       <div className="toolbar">
         <SearchBar onSearch={(search) => filter({ search })} placeholder="Search name, code or city" />
@@ -57,7 +74,7 @@ export default function SupplierList() {
                   {canWrite && (
                     <td className="actions">
                       <Link className="btn small" to={`/suppliers/${s._id}/edit`}>Edit</Link>
-                      {isAdmin && <button className="btn small danger" onClick={() => remove(s)}>Delete</button>}
+                      {isAdmin && <button className="btn small danger" onClick={() => setDeleteTarget(s)}>Delete</button>}
                     </td>
                   )}
                 </tr>
@@ -67,6 +84,16 @@ export default function SupplierList() {
         </table>
       </div>
       <Pagination pagination={pagination} onPage={setPage} />
+
+      <ConfirmModal
+        isOpen={Boolean(deleteTarget)}
+        title="Delete supplier"
+        message={`Are you sure you want to permanently delete supplier "${deleteTarget?.name}" (${deleteTarget?.code})?`}
+        confirmLabel="Delete supplier"
+        isDanger={true}
+        onConfirm={confirmRemove}
+        onCancel={() => setDeleteTarget(null)}
+      />
     </div>
   );
 }

@@ -7,6 +7,20 @@ import Pill from "../components/Pill";
 import { num } from "../utils/format";
 import PageHeader from "../components/PageHeader";
 import ProductCell from "../components/ProductCell";
+import { exportCsv } from "../utils/exportCsv";
+
+const REORDER_COLS = [
+  { header: "Product code", key: "product_id" },
+  { header: "Product name", key: "name" },
+  { header: "ABC-XYZ", key: "classification" },
+  { header: "Priority", key: "priority" },
+  { header: "Current stock", key: "inputs.stock" },
+  { header: "On order", key: "inputs.on_order" },
+  { header: "Reorder point", key: "reorder.reorder_point" },
+  { header: "Inventory position", key: "reorder.inventory_position" },
+  { header: "Order quantity", key: "reorder.order_qty" },
+  { header: "Supplier", key: "supplier.name" },
+];
 
 const fetchFull = () => insightService.list({ full: 1 });
 
@@ -31,6 +45,14 @@ export default function SmartReorder() {
           Only products that need an order
         </label>
         <span className="muted">{rows.length} products, {num(totalUnits, 0)} units in total</span>
+        <button
+          type="button"
+          className="btn small"
+          onClick={() => exportCsv("smart-reorder-recommendations", REORDER_COLS, rows)}
+          disabled={!rows.length}
+        >
+          Export CSV
+        </button>
       </div>
       {error && <div className="alert">{error}</div>}
       <div className="table-wrap">

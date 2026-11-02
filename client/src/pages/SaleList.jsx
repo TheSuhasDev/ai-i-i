@@ -1,11 +1,14 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import useAuth from "../context/useAuth";
+import useToast from "../context/useToast";
 import useList from "../hooks/useList";
 import { saleService, productService } from "../services";
 import { errorMessage } from "../services/api";
 import Pagination from "../components/Pagination";
-import { fmtDate, money } from "../utils/format";
+import ConfirmModal from "../components/ConfirmModal";
+import MetricCard from "../components/MetricCard";
+import { fmtDate, money, num } from "../utils/format";
 import PageHeader from "../components/PageHeader";
 import ProductCell from "../components/ProductCell";
 import ProductSelect from "../components/ProductSelect";
@@ -22,35 +25,52 @@ const SALE_COLS = [
 ];
 
 export default function SaleList() {
-  const { isAdmin } = useAuth();
+  const { user, isAdmin } = useAuth();
+  const toast = useToast();
   const { data, pagination, loading, error, params, filter, setPage, reload } = useList(saleService, {
     sort: "-date",
   });
   const [products, setProducts] = useState([]);
   const [actionError, setActionError] = useState("");
+  const [deleteTarget, setDeleteTarget] = useState(null);
 
   useEffect(() => {
     productService.list({ limit: 100, sort: "code" }).then((r) => setProducts(r.data.data)).catch(() => {});
   }, []);
 
-  const remove = async (s) => {
-    if (!window.confirm(`Delete this sale (${s.product?.name}, ${fmtDate(s.date)})?`)) return;
+  const confirmRemove = async () => {
+    if (!deleteTarget) return;
     try {
-      await saleService.remove(s._id);
+      await saleService.remove(deleteTarget._id);
       setActionError("");
+      toast.success("Sale record deleted successfully");
+      setDeleteTarget(null);
       reload();
     } catch (e) {
-      setActionError(errorMessage(e));
+      const msg = errorMessage(e);
+      setActionError(msg);
+      toast.error(msg);
+      setDeleteTarget(null);
     }
   };
+
+  const totalUnits = data.reduce((s, row) => s + (row.unitsSold || 0), 0);
+  const totalRevenue = data.reduce((s, row) => s + (row.revenue || 0), 0);
+  const promoCount = data.filter((row) => row.promoFlag).length;
 
   return (
     <div>
       <PageHeader
         title="Sales"
         subtitle="Review recorded demand history and add new sales."
-        actions={isAdmin ? <Link className="btn primary" to="/sales/new">+ Record sale</Link> : null}
+        actions={user ? <Link className="btn primary" to="/sales/new">+ Record sale</Link> : null}
       />
+
+      <div className="cards" style={{ marginBottom: "16px" }}>
+        <MetricCard label="Units Sold (Page)" value={num(totalUnits, 0)} sub="Total volume on screen" tone="tone-healthy" />
+        <MetricCard label="Revenue (Page)" value={money(totalRevenue)} sub="Gross revenue on screen" tone="tone-healthy" />
+        <MetricCard label="Promo Transactions" value={promoCount} sub={`Out of ${data.length} records`} tone="tone-warning" />
+      </div>
 
       <div className="toolbar">
         <ProductSelect products={products} value={params.product || ""} onChange={(product) => filter({ product })} allLabel="All products" />
@@ -91,7 +111,7 @@ export default function SaleList() {
                   {isAdmin && (
                     <td className="actions">
                       <Link className="btn small" to={`/sales/${s._id}/edit`}>Edit</Link>
-                      <button className="btn small danger" onClick={() => remove(s)}>Delete</button>
+                      <button className="btn small danger" onClick={() => setDeleteTarget(s)}>Delete</button>
                     </td>
                   )}
                 </tr>
@@ -101,6 +121,16 @@ export default function SaleList() {
         </table>
       </div>
       <Pagination pagination={pagination} onPage={setPage} />
+
+      <ConfirmModal
+        isOpen={Boolean(deleteTarget)}
+        title="Delete sale record"
+        message={`Are you sure you want to delete the sale for ${deleteTarget?.product?.name || "this product"} on ${fmtDate(deleteTarget?.date)}? This action is recorded in the audit log.`}
+        confirmLabel="Delete sale"
+        isDanger={true}
+        onConfirm={confirmRemove}
+        onCancel={() => setDeleteTarget(null)}
+      />
     </div>
   );
 }
