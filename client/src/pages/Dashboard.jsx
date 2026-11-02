@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import axios from "axios";
 import api, { errorMessage } from "../services/api";
-import { insightService } from "../services";
+import { insightService, purchaseOrderService } from "../services";
 import useAuth from "../context/useAuth";
 import useToast from "../context/useToast";
 import useFetch from "../hooks/useFetch";
@@ -13,7 +13,7 @@ import PageHeader from "../components/PageHeader";
 import MetricCard from "../components/MetricCard";
 import Icon from "../components/Icon";
 import ProductCell from "../components/ProductCell";
-import { formatDate, num } from "../utils/format";
+import { formatDate, fmtDate, num } from "../utils/format";
 import StaleDataBanner from "../components/StaleDataBanner";
 import { Bar, BarChart, CartesianGrid, Cell, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 
@@ -58,13 +58,20 @@ export default function Dashboard() {
   const [server, setServer] = useState("loading");
   const [ml, setMl] = useState("loading");
   const [lastChecked, setLastChecked] = useState(() => new Date());
+  const [recentPOs, setRecentPOs] = useState([]);
 
   useEffect(() => {
     api.get("/health").then((r) => setServer(r.data.status)).catch(() => setServer("down"));
     axios.get(`${import.meta.env.VITE_ML_URL}/health`).then((r) => setMl(r.data.status)).catch(() => setMl("down"));
+    purchaseOrderService.list({ limit: 4, sort: "-orderDate" })
+      .then((r) => setRecentPOs(r.data?.data || []))
+      .catch(() => {});
 
     const pollInterval = setInterval(() => {
       reload();
+      purchaseOrderService.list({ limit: 4, sort: "-orderDate" })
+        .then((r) => setRecentPOs(r.data?.data || []))
+        .catch(() => {});
       setLastChecked(new Date());
     }, 60000);
     return () => clearInterval(pollInterval);
@@ -100,7 +107,10 @@ export default function Dashboard() {
     .filter(({ trend }) => trend.trend === "decreasing")
     .sort((a, b) => a.trend.yoy_change_pct - b.trend.yoy_change_pct)
     .slice(0, 5);
-  const criticalProducts = items.filter((item) => item.priority === "Critical").slice(0, 3);
+  const criticalProducts = items
+    .filter((item) => item.priority === "Critical" || item.riskPct >= 35)
+    .sort((a, b) => (b.riskPct || 0) - (a.riskPct || 0))
+    .slice(0, 5);
   const hasInsights = Boolean(latest || (items.length > 0 && (critical > 0 || atRisk > 0 || reorderNow > 0 || avgHealth != null)));
 
   const refresh = async () => {
@@ -176,40 +186,77 @@ export default function Dashboard() {
             <Link to="/reorder" className="card-link"><MetricCard label="Reorder now" value={reorderNow} sub="Products needing an order" icon="package" /></Link>
           </div>
 
-          <section className="card attention-card">
-            <h3><Icon name="alert" size={18} /> What needs attention today</h3>
-            {criticalProducts.length ? (
-              <ul className="attention-list">
-                {criticalProducts.map((item) => {
-                  const reason = item.daysOfCover < item.daysToDelivery
-                    ? `About ${num(item.daysOfCover, 0)} days of stock left; delivery takes ${num(item.daysToDelivery, 0)} days.`
-                    : `${num(item.riskPct, 0)}% estimated stockout risk.`;
-                  const qty = item.orderQty || item.data?.reorder?.order_qty || 1;
-                  const supId = item.data?.reorder?.supplier_id || item.data?.supplier?.id;
-                  return (
-                    <li key={item._id} className="attention-item">
-                      <ProductCell product={{ code: item.productCode, name: item.data?.name }} size="lg" imageList={criticalProducts} />
-                      <div className="attention-meta">
-                        <span className="attention-reason">{reason}</span>
-                        {canWrite && (
-                          <Link
-                            className="btn small primary"
-                            to={`/purchase-orders/new?productCode=${item.productCode}&qty=${qty}${supId ? `&supplierCode=${supId}` : ""}`}
-                          >
-                            Create PO
-                          </Link>
-                        )}
+          <div className="grid2" style={{ marginBottom: "16px" }}>
+            <section className="card attention-card" style={{ margin: 0 }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "12px" }}>
+                <h3 style={{ margin: 0 }}><Icon name="alert" size={18} /> Top Attention Needed</h3>
+                <Link to="/alerts" className="small" style={{ color: "var(--primary)", textDecoration: "none" }}>View all alerts →</Link>
+              </div>
+              {criticalProducts.length ? (
+                <ul className="attention-list">
+                  {criticalProducts.map((item) => {
+                    const reason = item.daysOfCover < item.daysToDelivery
+                      ? `${num(item.daysOfCover, 0)}d stock vs ${num(item.daysToDelivery, 0)}d delivery`
+                      : `${num(item.riskPct, 0)}% stockout risk`;
+                    const qty = item.orderQty || item.data?.reorder?.order_qty || 1;
+                    const supId = item.data?.reorder?.supplier_id || item.data?.supplier?.id;
+                    return (
+                      <li key={item._id} className="attention-item" style={{ padding: "8px 0" }}>
+                        <ProductCell product={{ code: item.productCode, name: item.data?.name }} size="sm" imageList={criticalProducts} />
+                        <div className="attention-meta" style={{ display: "flex", gap: "8px", alignItems: "center" }}>
+                          <span className="attention-reason small" style={{ color: "var(--danger)", fontWeight: 500 }}>{reason}</span>
+                          {canWrite && (
+                            <Link
+                              className="btn small primary"
+                              to={`/purchase-orders/new?productCode=${item.productCode}&qty=${qty}${supId ? `&supplierCode=${supId}` : ""}`}
+                            >
+                              PO
+                            </Link>
+                          )}
+                        </div>
+                      </li>
+                    );
+                  })}
+                </ul>
+              ) : !hasInsights ? (
+                <p className="muted small">Insights not computed yet. Click Refresh insights.</p>
+              ) : (
+                <p className="muted small">No critical products right now.</p>
+              )}
+            </section>
+
+            <section className="card" style={{ margin: 0 }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "12px" }}>
+                <h3 style={{ margin: 0 }}><Icon name="package" size={18} /> Live Activity Feed</h3>
+                <Link to="/purchase-orders" className="small" style={{ color: "var(--primary)", textDecoration: "none" }}>All orders →</Link>
+              </div>
+              {recentPOs.length ? (
+                <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+                  {recentPOs.map((po) => {
+                    const totalQty = (po.items || []).reduce((acc, it) => acc + (it.quantityOrdered || 0), 0);
+                    const recQty = (po.items || []).reduce((acc, it) => acc + (it.quantityReceived || 0), 0);
+                    const pct = totalQty > 0 ? Math.round((recQty / totalQty) * 100) : 0;
+                    return (
+                      <div key={po._id} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "8px 10px", background: "var(--bg-subtle, rgba(0,0,0,0.02))", borderRadius: "6px", border: "1px solid var(--border)" }}>
+                        <div>
+                          <div style={{ fontWeight: 600, fontSize: "0.85rem" }}>
+                            <Link to={`/purchase-orders/${po._id}`} style={{ color: "var(--text)" }}>{po.orderNumber}</Link>
+                            <span className="muted" style={{ fontWeight: 400, marginLeft: "6px" }}>• {po.supplier?.name || "Supplier"}</span>
+                          </div>
+                          <div className="muted small" style={{ fontSize: "0.75rem", marginTop: "2px" }}>
+                            {po.orderDate ? fmtDate(po.orderDate) : "Recent"} • {totalQty} units ({pct}% received)
+                          </div>
+                        </div>
+                        <Pill value={po.status} />
                       </div>
-                    </li>
-                  );
-                })}
-              </ul>
-            ) : !hasInsights ? (
-              <p className="muted">Insights not computed yet. Click Refresh insights.</p>
-            ) : (
-              <p className="muted">No critical products right now.</p>
-            )}
-          </section>
+                    );
+                  })}
+                </div>
+              ) : (
+                <p className="muted small">No recent purchase orders found.</p>
+              )}
+            </section>
+          </div>
 
           <div className="grid2">
             <div className="card">

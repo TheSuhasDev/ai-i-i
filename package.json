@@ -6,3 +6,4 @@
     "seed:refresh": "npm --prefix server run seed:refresh"
   }
 }
+

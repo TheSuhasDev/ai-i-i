@@ -10,10 +10,10 @@
 
 | Category | Count | Description |
 | :--- | :--- | :--- |
-| **FIXED** | 4 | Critical bug fixes in RBAC authorization, negative delay days, schema constraints, and JSX nesting |
-| **POLISHED** | 18 | UX/UI elevations: typography system, KPI cards, Recharts visualizations, auto-refresh polling, toasts |
-| **ADDED** | 9 | New components, pages, middleware, unit tests, and configuration templates |
-| **TOTAL** | **31** | Total quality elevation changes applied |
+| **FIXED** | 5 | Critical bug fixes in RBAC authorization, negative delay days, schema constraints, JSX nesting, and dynamic seed dates |
+| **POLISHED** | 27 | Visual elevation: charts, card/grid view toggles, progress bars, relative countdowns, KPI cards, activity feeds |
+| **ADDED** | 13 | New components, pages, middleware, unit tests, scripts, and configuration templates |
+| **TOTAL** | **45** | Total quality elevation changes applied |
 
 ---
 
@@ -67,3 +67,10 @@
 | `package.json` | **ADDED** | Added root `package.json` with `"seed:refresh"` convenience script. | Enables running `npm run seed:refresh` directly from project root. |
 | `client/src/components/MetricCard.jsx` | **POLISHED** | Added flex layout with progress bar spacer to guarantee equal card heights. | Ensures uniform height between cards with and without progress meters. |
 | `client/src/index.css` | **POLISHED** | Updated `.cards`, `.card.stat`, and `.card-link` CSS to enforce equal height across KPI grid. | Keeps all 4 dashboard metric cards perfectly aligned. |
+| `client/src/pages/ProductList.jsx` | **POLISHED** | Added View Mode toggle (`☰ Table` vs `⊞ Cards`), Category Breakdown Recharts BarChart, visual profit margin pills (`+XX% margin`), and lead time badges. | Transforms dense tabular catalog into a visual, scannable catalog with instant category distribution. |
+| `client/src/pages/InventoryList.jsx` | **POLISHED** | Added View Mode toggle (`☰ Table` vs `⊞ Cards`), Stock on Hand by Category BarChart, visual stock level progress bars with health badges, and transit chips. | Replaces plain numbers with visual stock capacity progress bars and fast scannable inventory cards. |
+| `client/src/pages/SaleList.jsx` | **POLISHED** | Added Sales Revenue Trend Recharts AreaChart, visual promo pills (`🏷️ Promo` vs `Regular`), and tabular monetary alignment. | Replaces raw sales logs with a visual historical revenue curve and prominent transaction tags. |
+| `client/src/pages/PurchaseOrderList.jsx` | **POLISHED** | Added PO Status Distribution BarChart, visual order fulfillment progress bars (`received / ordered` with fill percentage), and relative delivery countdown pills (`Late by Xd`, `En route`, `Delivered`). | Enables instant visual scannability of procurement status, order fulfillment progress, and delivery timelines. |
+| `client/src/pages/Alerts.jsx` | **POLISHED** | Added 4 interactive KPI metric cards (Critical, High, Medium, Low) acting as quick filters, View Mode toggle (`⊞ Cards` vs `☰ Table`), and rich Alert Cards with severity borders and direct action links. | Transforms monotonous alert lists into scannable severity cards with immediate triage shortcuts. |
+| `client/src/pages/SmartReorder.jsx` | **POLISHED** | Added 3 KPI cards (Products to Reorder, Recommended Units, Critical Stockout Risk), Recharts BarChart comparing Stock vs Reorder Point vs Recommended Order Qty, and styled order pills. | Replaces text-heavy replenishment tables with side-by-side visual inventory gap analysis. |
+| `client/src/pages/Dashboard.jsx` | **POLISHED** | Upgraded Dashboard with side-by-side "Top 5 Attention Needed" panel and mini "Live Activity Feed" showing recent purchase orders with fulfillment progress and status pills. | Provides operational situational awareness at a single glance with zero unnecessary walls of text. |

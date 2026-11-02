@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import useAuth from "../context/useAuth";
 import useToast from "../context/useToast";
@@ -14,6 +14,7 @@ import PageHeader from "../components/PageHeader";
 import Pill from "../components/Pill";
 import ProductCell from "../components/ProductCell";
 import { exportCsv } from "../utils/exportCsv";
+import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 
 const PO_COLS = [
   { header: "PO Number", key: "poNumber", format: (v, row) => normalizePoNumber(row) },
@@ -51,6 +52,7 @@ export default function PurchaseOrderList() {
   const [actionError, setActionError] = useState("");
   const [cancelTarget, setCancelTarget] = useState(null);
   const [deleteTarget, setDeleteTarget] = useState(null);
+  const [showChart, setShowChart] = useState(false);
 
   const confirmCancel = async () => {
     if (!cancelTarget) return;
@@ -88,6 +90,13 @@ export default function PurchaseOrderList() {
   const inTransitOrders = data.filter((po) => po.status === "In Transit").length;
   const overdueCount = data.filter((po) => getOverdueDays(po) > 0).length;
 
+  const statusDistribution = useMemo(() => {
+    return PO_STATUSES.map((status) => ({
+      status,
+      count: data.filter((po) => po.status === status).length,
+    })).filter((s) => s.count > 0);
+  }, [data]);
+
   return (
     <div>
       <PageHeader title="Purchase Orders" subtitle="Track open, delivered, and cancelled supplier orders." actions={canWrite && <Link className="btn primary" to="/purchase-orders/new">+ Add purchase order</Link>} />
@@ -98,14 +107,40 @@ export default function PurchaseOrderList() {
         <MetricCard label="Overdue Deliveries" value={overdueCount} sub="Past expected arrival date" tone={overdueCount ? "tone-critical" : "tone-healthy"} />
       </div>
 
-      <div className="toolbar">
+      <div className="toolbar" style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: "10px" }}>
         <SearchBar onSearch={(search) => filter({ search })} placeholder="Search PO number" />
         <select value={params.status || ""} onChange={(e) => filter({ status: e.target.value })}>
           <option value="">All statuses</option>
           {PO_STATUSES.map((s) => <option key={s}>{s}</option>)}
         </select>
-        <button className="btn" onClick={() => exportCsv("purchase-orders", PO_COLS, data)} disabled={!data.length}>Export CSV</button>
+        <button
+          type="button"
+          className="btn small"
+          onClick={() => setShowChart((v) => !v)}
+          title="Toggle PO Status Chart"
+          style={{ marginLeft: "auto" }}
+        >
+          {showChart ? "Hide Chart" : "📊 Status Chart"}
+        </button>
+        <button className="btn small" onClick={() => exportCsv("purchase-orders", PO_COLS, data)} disabled={!data.length}>Export CSV</button>
       </div>
+
+      {showChart && statusDistribution.length > 0 && (
+        <section className="card" style={{ marginBottom: "16px", padding: "16px" }}>
+          <h4 style={{ margin: "0 0 12px", fontSize: "14px", color: "var(--text-muted)" }}>Purchase Orders by Status</h4>
+          <div style={{ width: "100%", height: 160 }}>
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={statusDistribution} margin={{ top: 8, right: 16, bottom: 10, left: 0 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="var(--chart-grid, rgba(255,255,255,0.08))" />
+                <XAxis dataKey="status" />
+                <YAxis allowDecimals={false} width={30} />
+                <Tooltip formatter={(value) => [`${value} orders`, "Count"]} />
+                <Bar dataKey="count" fill="var(--brand, #3b82f6)" radius={[4, 4, 0, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        </section>
+      )}
 
       {(error || actionError) && <div className="alert">{error || actionError}</div>}
 
@@ -113,16 +148,16 @@ export default function PurchaseOrderList() {
         <table>
           <thead>
             <tr>
-              <th>PO</th><th>Product</th><th>Supplier</th><th>Ordered</th><th>Expected</th>
-              <th>Delivered</th><th>Delay</th><th>Qty</th><th>Status</th><th>Overdue</th><th className="col-quality">Quality</th>
+              <th>PO</th><th>Product</th><th>Supplier</th><th>Order Date</th><th>Expected</th>
+              <th>Status</th><th>Fulfillment</th><th>ETA / Delay</th><th className="col-quality">Quality</th>
               {canWrite && <th className="sticky-actions-col">Actions</th>}
             </tr>
           </thead>
           <tbody>
             {loading ? (
-              <tr><td colSpan={12} className="center">Loading...</td></tr>
+              <tr><td colSpan={10} className="center">Loading...</td></tr>
             ) : data.length === 0 ? (
-              <tr><td colSpan={12} className="center">No purchase orders found</td></tr>
+              <tr><td colSpan={10} className="center">No purchase orders found</td></tr>
             ) : (
               data.map((po) => {
                 const overdueDays = getOverdueDays(po);
@@ -130,28 +165,51 @@ export default function PurchaseOrderList() {
                 const canCancel = canWrite && ["Pending", "Approved", "In Transit"].includes(po.status);
                 const canDelete = isAdmin && po.status === "Cancelled";
                 const delayVal = isOverdue ? overdueDays : (po.status === "Delivered" && po.delayDays != null && po.delayDays < 0 ? 0 : (po.delayDays ?? "-"));
+                const progressPct = Math.min(100, Math.round(((po.qtyReceived || 0) / (po.qtyOrdered || 1)) * 100));
                 return (
                 <tr key={po._id}>
-                  <td>{normalizePoNumber(po)}</td>
+                  <td><span className="badge" style={{ fontWeight: 600 }}>{normalizePoNumber(po)}</span></td>
                   <td><ProductCell product={po.product || {}} imageList={data.map((row) => row.product).filter(Boolean)} /></td>
                   <td>{po.supplier?.name}</td>
-                  <td>{fmtDate(po.orderDate)}</td>
+                  <td className="muted small">{fmtDate(po.orderDate)}</td>
                   <td>{fmtDate(po.expectedDeliveryDate)}</td>
-                  <td>{fmtDate(po.actualDeliveryDate)}</td>
-                  <td className={po.delayDays > 0 ? "late" : ""}>{delayVal}</td>
-                  <td>{po.qtyOrdered}</td>
                   <td>
                     <Pill value={po.status} />
                   </td>
-                  <td>
-                    {isOverdue ? <span className="badge danger">Overdue {overdueDays}d</span> : <span className="muted small">-</span>}
+                  <td style={{ minWidth: "120px" }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", fontSize: "11px", marginBottom: "3px" }}>
+                      <span>{po.qtyReceived || 0} / {po.qtyOrdered}</span>
+                      <span className="muted">{progressPct}%</span>
+                    </div>
+                    <div style={{ height: "5px", width: "100%", backgroundColor: "var(--bg-muted, rgba(255,255,255,0.08))", borderRadius: "99px", overflow: "hidden" }}>
+                      <div style={{ height: "100%", width: `${progressPct}%`, backgroundColor: po.status === "Delivered" ? "var(--success)" : "var(--accent)" }} />
+                    </div>
                   </td>
-                  <td className="col-quality">{po.qualityIssue ? "Issue" : "OK"}</td>
+                  <td>
+                    {isOverdue ? (
+                      <span className="pill status-critical" style={{ fontSize: "11px" }}>⚠️ Late by {overdueDays}d</span>
+                    ) : po.status === "In Transit" ? (
+                      <span className="pill status-warning" style={{ fontSize: "11px" }}>🚚 In Transit</span>
+                    ) : po.status === "Delivered" ? (
+                      <span className="pill status-healthy" style={{ fontSize: "11px" }}>✓ {delayVal > 0 ? `+${delayVal}d` : "On time"}</span>
+                    ) : po.status === "Cancelled" ? (
+                      <span className="pill muted" style={{ fontSize: "11px" }}>✕ Void</span>
+                    ) : (
+                      <span className="pill status-info" style={{ fontSize: "11px" }}>⏳ Processing</span>
+                    )}
+                  </td>
+                  <td className="col-quality">
+                    {po.qualityIssue ? (
+                      <span className="pill status-critical" style={{ fontSize: "11px" }}>Issue</span>
+                    ) : (
+                      <span className="pill status-healthy" style={{ fontSize: "11px" }}>OK</span>
+                    )}
+                  </td>
                   {canWrite && (
                     <td className="actions sticky-actions-col">
                       <Link className="btn small" to={`/purchase-orders/${po._id}/edit`}>Edit</Link>
-                      {canCancel && <button className="btn small warning" onClick={() => setCancelTarget(po)}>Cancel</button>}
-                      {canDelete && <button className="btn small danger" onClick={() => setDeleteTarget(po)}>Delete</button>}
+                      {canCancel && <button type="button" className="btn small warning" onClick={() => setCancelTarget(po)}>Cancel</button>}
+                      {canDelete && <button type="button" className="btn small danger" onClick={() => setDeleteTarget(po)}>Delete</button>}
                     </td>
                   )}
                 </tr>
