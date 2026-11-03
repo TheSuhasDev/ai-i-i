@@ -320,22 +320,13 @@ export default function Layout() {
               className="quick-search-btn"
               onClick={() => setCommandOpen(true)}
               title="Quick Jump / Search (Ctrl+K)"
-              style={{
-                display: "inline-flex",
-                alignItems: "center",
-                gap: "6px",
-                background: "var(--bg-muted, rgba(255,255,255,0.06))",
-                border: "1px solid var(--border, rgba(255,255,255,0.12))",
-                color: "var(--text-muted, #94a3b8)",
-                padding: "4px 8px",
-                borderRadius: "6px",
-                fontSize: "12px",
-                cursor: "pointer",
-                marginRight: "4px",
-              }}
             >
-              <span>🔍 Quick Jump</span>
-              <kbd style={{ fontSize: "10px", padding: "1px 4px", borderRadius: "3px", background: "rgba(0,0,0,0.2)" }}>Ctrl K</kbd>
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" style={{ color: "var(--accent)" }}>
+                <circle cx="11" cy="11" r="8" />
+                <line x1="21" y1="21" x2="16.65" y2="16.65" />
+              </svg>
+              <span>Quick Jump</span>
+              <kbd>Ctrl K</kbd>
             </button>
             <NotificationBell />
             <span className="topbar-user">

@@ -106,9 +106,9 @@ export default function NotificationBell() {
               right: "4px",
               width: "8px",
               height: "8px",
-              backgroundColor: "var(--danger, #ef4444)",
+              backgroundColor: "var(--danger)",
               borderRadius: "50%",
-              boxShadow: "0 0 0 2px var(--card-bg, #1e293b)",
+              boxShadow: "0 0 0 2px var(--surface)",
             }}
           />
         )}
@@ -120,37 +120,38 @@ export default function NotificationBell() {
             position: "absolute",
             right: 0,
             top: "calc(100% + 8px)",
-            width: "300px",
-            background: "var(--card-bg, #1e293b)",
-            border: "1px solid var(--border, rgba(255, 255, 255, 0.1))",
-            borderRadius: "12px",
-            boxShadow: "0 12px 28px -6px rgba(0,0,0,0.35)",
+            width: "320px",
+            background: "var(--surface)",
+            border: "1px solid var(--border-strong)",
+            borderRadius: "var(--radius-md)",
+            boxShadow: "var(--shadow-pop)",
             zIndex: 1000,
             overflow: "hidden",
-            animation: "fadeIn 120ms ease-out",
+            animation: "modalPopIn 160ms cubic-bezier(0.16, 1, 0.3, 1)",
           }}
         >
           <div
             style={{
               padding: "10px 14px",
-              borderBottom: "1px solid var(--border, rgba(255, 255, 255, 0.08))",
+              borderBottom: "1px solid var(--border)",
               fontWeight: 600,
               fontSize: "13px",
               display: "flex",
               justifyContent: "space-between",
               alignItems: "center",
+              background: "var(--surface)",
             }}
           >
             <span>Live System Alerts</span>
-            <span style={{ fontSize: "11px", color: "var(--text-muted, #94a3b8)" }}>
+            <span style={{ fontSize: "11px", color: "var(--muted)" }}>
               {loading ? "Checking..." : `${notifications.length} active`}
             </span>
           </div>
 
-          <div style={{ maxHeight: "260px", overflowY: "auto" }}>
+          <div style={{ maxHeight: "280px", overflowY: "auto" }}>
             {notifications.length === 0 ? (
-              <div style={{ padding: "18px", textAlign: "center", fontSize: "13px", color: "var(--text-muted, #94a3b8)" }}>
-                ✅ All systems normal. No critical supply bottlenecks.
+              <div style={{ padding: "20px 16px", textAlign: "center", fontSize: "13px", color: "var(--muted)" }}>
+                All systems normal. No critical supply bottlenecks.
               </div>
             ) : (
               notifications.map((n) => (
@@ -163,10 +164,10 @@ export default function NotificationBell() {
                     padding: "10px 14px",
                     textDecoration: "none",
                     color: "inherit",
-                    borderBottom: "1px solid var(--border, rgba(255, 255, 255, 0.05))",
+                    borderBottom: "1px solid var(--border)",
                     transition: "background 100ms",
                   }}
-                  onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = "var(--hover-bg, rgba(255,255,255,0.05))")}
+                  onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = "var(--surface-hover)")}
                   onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = "transparent")}
                 >
                   <div style={{ display: "flex", alignItems: "center", gap: "6px", marginBottom: "2px" }}>
@@ -175,13 +176,13 @@ export default function NotificationBell() {
                         width: "6px",
                         height: "6px",
                         borderRadius: "50%",
-                        backgroundColor: n.type === "danger" ? "var(--danger, #ef4444)" : "var(--warning, #f59e0b)",
+                        backgroundColor: n.type === "danger" ? "var(--danger)" : "var(--warning)",
                         display: "inline-block",
                       }}
                     />
                     <strong style={{ fontSize: "13px" }}>{n.title}</strong>
                   </div>
-                  <p style={{ margin: 0, fontSize: "12px", color: "var(--text-muted, #94a3b8)", lineHeight: 1.4 }}>
+                  <p style={{ margin: 0, fontSize: "12px", color: "var(--muted)", lineHeight: 1.4 }}>
                     {n.desc}
                   </p>
                 </Link>
