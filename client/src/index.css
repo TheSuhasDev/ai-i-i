@@ -8,6 +8,7 @@
   --color-card: var(--surface);
   --color-primary: var(--primary);
   --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted);
   --color-border: var(--border);
   --font-sans: var(--font-body);
 }
@@ -393,6 +394,13 @@ tbody tr:hover td.sticky-actions-col {
 .login-card p { margin: 0; }
 .login-card .btn { width: 100%; min-height: 44px; margin-top: 4px; }
 .login-card .small { text-align: center; }
+@media (max-height: 700px) {
+  .login-viewport-container {
+    height: auto !important;
+    min-height: 100vh !important;
+    overflow-y: auto !important;
+  }
+}
 .nav-section { color: #747c8c; }
 .pill { display: inline-flex; align-items: center; padding: 3px 9px; border: 1px solid var(--border); border-radius: 99px; color: var(--muted); background: var(--surface-raised); font-size: 10px; font-weight: 650; letter-spacing: .035em; }
 .pill.critical, .pill.high { border-color: color-mix(in srgb, var(--danger) 24%, transparent); color: var(--danger); background: var(--danger-soft); }

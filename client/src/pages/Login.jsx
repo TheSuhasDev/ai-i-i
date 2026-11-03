@@ -66,10 +66,11 @@ export default function Login() {
   };
 
   return (
-    <div className="min-h-screen w-full grid lg:grid-cols-2 bg-[var(--bg)] text-[var(--text)] selection:bg-[var(--accent)]/30">
+    <div className="login-viewport-container min-h-screen overflow-y-auto lg:h-screen lg:overflow-hidden lg:grid lg:grid-cols-2 bg-[var(--bg)] text-[var(--text)] selection:bg-[var(--accent)]/30">
       {/* Left panel: Project Showcase (Desktop lg+) */}
-      <div className="hidden lg:flex flex-col justify-between p-10 xl:p-14 border-r border-[var(--border)] bg-gradient-to-br from-[var(--bg)] via-[var(--surface)] to-[var(--bg-raised)] relative overflow-hidden">
-        <div className="max-w-xl mx-auto w-full flex flex-col justify-between h-full space-y-8 z-10">
+      <div className="hidden lg:flex flex-col justify-between h-full px-12 py-8 border-r border-[var(--border)] bg-gradient-to-br from-[var(--bg)] via-[var(--surface)] to-[var(--bg-raised)] relative overflow-hidden">
+        {/* Main showcase content - vertically centered */}
+        <div className="max-w-xl mx-auto w-full space-y-6 z-10 my-auto">
           {/* Header Brand */}
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[var(--accent)] to-[var(--accent-strong)] flex items-center justify-center shadow-lg shadow-[var(--accent)]/20 text-[var(--primary-contrast)]">
@@ -81,20 +82,20 @@ export default function Login() {
           </div>
 
           {/* Headline & Subtext */}
-          <div className="space-y-4">
-            <h1 className="text-3xl sm:text-4xl xl:text-5xl font-extrabold tracking-tight text-[var(--text)] leading-[1.15]">
+          <div className="space-y-2">
+            <h1 className="text-4xl xl:text-5xl font-bold tracking-tight text-[var(--text)] text-balance leading-tight">
               Know what to stock,{" "}
-              <span className="text-[var(--accent)] bg-gradient-to-r from-[var(--accent)] to-[var(--accent-strong)] bg-clip-text text-transparent">
+              <span className="text-[var(--accent)] bg-gradient-to-r from-[var(--accent)] to-[var(--accent-strong)] bg-clip-text text-transparent inline-block">
                 before you run out.
               </span>
             </h1>
-            <p className="text-base text-[var(--muted)] leading-relaxed">
+            <p className="text-sm text-[var(--muted)] text-muted-foreground leading-relaxed max-w-lg">
               AI-powered inventory and supply chain intelligence for smarter reorder decisions.
             </p>
           </div>
 
           {/* Real UI Telemetry Preview Card */}
-          <div className="rounded-xl border border-[var(--border)] bg-[var(--surface-raised)]/90 backdrop-blur-md p-4 shadow-xl shadow-black/25 space-y-3">
+          <div className="rounded-xl border border-[var(--border)] bg-[var(--surface-raised)]/90 backdrop-blur-md p-4 shadow-xl shadow-black/25 space-y-2.5">
             <div className="flex items-center justify-between text-xs">
               <span className="font-semibold text-[var(--text)] flex items-center gap-2">
                 <span className="w-2 h-2 rounded-full bg-[var(--danger)] animate-pulse" />
@@ -107,15 +108,15 @@ export default function Login() {
             <div className="flex items-center justify-between text-sm">
               <div>
                 <div className="font-bold text-[var(--text)]">USB 3.0 Hub (SKU: P008)</div>
-                <div className="text-xs text-[var(--muted)]">Lead time: 5 days &bull; TechCorp Logistics</div>
+                <div className="text-xs text-[var(--muted)] text-muted-foreground">Lead time: 5 days &bull; TechCorp Logistics</div>
               </div>
               <div className="text-right">
-                <div className="text-xs text-[var(--muted)]">Suggested Qty</div>
+                <div className="text-xs text-[var(--muted)] text-muted-foreground">Suggested Qty</div>
                 <span className="font-mono font-bold text-sm text-[var(--accent)]">+120 units</span>
               </div>
             </div>
-            <div className="space-y-1 pt-1">
-              <div className="flex justify-between text-[11px] text-[var(--muted)]">
+            <div className="space-y-1 pt-0.5">
+              <div className="flex justify-between text-[11px] text-[var(--muted)] text-muted-foreground">
                 <span>Current Stock: 14 units</span>
                 <span>Reorder Point: 65 units</span>
               </div>
@@ -125,43 +126,43 @@ export default function Login() {
             </div>
           </div>
 
-          {/* 4 Feature Items */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          {/* 4 Feature Items (2x2 Grid) */}
+          <div className="grid grid-cols-2 gap-x-8 gap-y-5">
             {FEATURES.map((feature) => {
               const Icon = feature.icon;
               return (
-                <div key={feature.title} className="flex items-start gap-3 p-2.5 rounded-lg transition-colors hover:bg-[var(--surface-hover)]/40">
+                <div key={feature.title} className="flex items-start gap-3">
                   <div className="w-8 h-8 rounded-lg flex items-center justify-center bg-[var(--surface-raised)] border border-[var(--border)] text-[var(--accent)] shrink-0 mt-0.5 shadow-sm">
                     <Icon className="w-4 h-4" />
                   </div>
-                  <div>
-                    <h2 className="text-sm font-semibold text-[var(--text)] leading-tight">{feature.title}</h2>
-                    <p className="text-xs text-[var(--muted)] mt-0.5 leading-snug">{feature.desc}</p>
+                  <div className="min-w-0">
+                    <h2 className="text-base font-semibold text-[var(--text)] leading-snug whitespace-nowrap">{feature.title}</h2>
+                    <p className="text-sm text-[var(--muted)] text-muted-foreground mt-0.5 leading-snug">{feature.desc}</p>
                   </div>
                 </div>
               );
             })}
           </div>
+        </div>
 
-          {/* Tech Stack Chips */}
-          <div className="pt-4 border-t border-[var(--border)] flex flex-wrap items-center gap-2">
-            <span className="text-xs text-[var(--subtle)] font-semibold uppercase tracking-wider mr-1">
-              Stack:
+        {/* Tech Stack Chips Pinned at Bottom */}
+        <div className="max-w-xl mx-auto w-full pt-4 border-t border-[var(--border)] flex flex-wrap items-center gap-2 z-10 shrink-0">
+          <span className="text-xs text-[var(--subtle)] font-semibold uppercase tracking-wider mr-1">
+            Stack:
+          </span>
+          {TECH_STACK.map((tech) => (
+            <span
+              key={tech}
+              className="inline-flex items-center px-2.5 py-1 rounded-md text-xs font-medium bg-[var(--surface-raised)] border border-[var(--border)] text-[var(--muted)]"
+            >
+              {tech}
             </span>
-            {TECH_STACK.map((tech) => (
-              <span
-                key={tech}
-                className="inline-flex items-center px-2.5 py-1 rounded-md text-xs font-medium bg-[var(--surface-raised)] border border-[var(--border)] text-[var(--muted)]"
-              >
-                {tech}
-              </span>
-            ))}
-          </div>
+          ))}
         </div>
       </div>
 
       {/* Right panel: Login Card */}
-      <div className="flex items-center justify-center p-6 sm:p-10 lg:p-12 w-full min-h-screen relative">
+      <div className="flex flex-col justify-center items-center h-full min-h-screen lg:min-h-0 p-6 sm:p-8 lg:px-12 w-full relative">
         <div className="w-full max-w-md mx-auto">
           {/* Mobile-only branding header */}
           <div className="lg:hidden flex items-center justify-center gap-3 mb-6">
@@ -228,11 +229,11 @@ export default function Login() {
               </div>
             </label>
 
-            <button className="btn primary" disabled={busy} style={{ marginTop: "8px" }}>
+            <button className="btn primary" disabled={busy} style={{ marginTop: "4px" }}>
               {busy ? "Signing in..." : "Sign in"}
             </button>
 
-            <div style={{ marginTop: "16px", paddingTop: "12px", borderTop: "1px solid var(--border)", display: "flex", flexDirection: "column", gap: "6px" }}>
+            <div style={{ marginTop: "12px", paddingTop: "10px", borderTop: "1px solid var(--border)", display: "flex", flexDirection: "column", gap: "6px" }}>
               <span style={{ fontSize: "11px", color: "var(--muted)", textTransform: "uppercase", letterSpacing: "0.06em", fontWeight: 650 }}>
                 Quick Demo Fill
               </span>
