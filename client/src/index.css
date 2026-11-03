@@ -460,7 +460,6 @@ table.compare th:nth-child(n+2), table.compare td:nth-child(n+2) { text-align: r
 .recharts-text { fill: var(--muted); font-family: var(--font-body); font-size: 11px; }
 .recharts-cartesian-grid line { stroke: var(--chart-grid); }
 .recharts-cartesian-axis-line, .recharts-cartesian-axis-tick-line { stroke: var(--border-strong); }
-.chat { max-width: 1000px; }
 .chat-window { display: flex; min-height: 340px; max-height: 58vh; flex-direction: column; gap: 14px; overflow-y: auto; margin: 12px 0; padding: 18px; border: 1px solid var(--border); border-radius: var(--radius-lg); background: var(--surface); box-shadow: var(--shadow-card); }
 .msg { max-width: 94%; }
 .msg.user { align-self: flex-end; padding: 10px 14px; border: 1px solid var(--border); border-radius: 14px 14px 4px 14px; background: var(--surface-hover); }
@@ -490,12 +489,24 @@ details.used ul { margin: 4px 0; padding-left: 20px; }
 .topbar-user { min-width: 0; max-width: 100%; overflow-wrap: anywhere; }
 .topbar-user-name { min-width: 0; }
 .table-wrap { min-width: 0; max-width: 100%; overflow-x: auto; overscroll-behavior-x: contain; }
-.chat { width: 100%; min-width: 0; max-width: 1000px; }
 .chat-card { display: flex; width: 100%; min-width: 0; max-width: 100%; flex-direction: column; }
 .chat-card .chips { min-width: 0; }
 .chat-card .chip { max-width: 100%; min-width: 0; white-space: normal; overflow-wrap: anywhere; text-align: left; }
 .chat-window .msg, .chat-window .answer-section, .chat-window .answer-section p, .chat-window .answer-section li { min-width: 0; overflow-wrap: anywhere; }
-.chat-window { width: 100%; min-width: 0; height: min(54vh, 520px); min-height: 300px; max-height: none; flex: 0 0 auto; overflow-x: hidden; }
+.chat-window { width: 100%; min-width: 0; min-height: 0; flex: 1 1 0%; overflow-x: hidden; }
+.chat-window.flex-1 {
+  height: auto;
+  max-height: none;
+  min-height: 0;
+  flex: 1 1 0%;
+  margin: 16px 0 0 0;
+  overflow-y: auto;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--surface-raised);
+  padding: 16px;
+  box-shadow: none;
+}
 .chat-window > * { min-width: 0; }
 .chat-input { width: 100%; min-width: 0; margin-top: auto; }
 .chat-input input { min-width: 0; width: 100%; }
@@ -707,17 +718,6 @@ table { font-size: .85rem; }
 th, td { padding: 8px 12px; }
 .pagination { padding: 10px 4px; }
 .page-heading-copy h2 { margin-bottom: 3px; }
-.chat { max-width: 1000px; }
-
-/* The full-page assistant keeps its composer visible while messages scroll. */
-.main:has(.chat) { height: 100vh; min-height: 0; overflow: hidden; }
-.content:has(.chat) { height: calc(100vh - 56px); min-height: 0; overflow: hidden; padding-top: 18px; padding-bottom: 18px; }
-.chat:has(.chat-card) { display: flex; height: 100%; min-height: 0; flex-direction: column; }
-.chat > .page-heading, .chat > .page-head, .chat > p.muted, .chat > .alert { flex: 0 0 auto; }
-.chat > p.muted { margin-bottom: 10px; }
-.chat-card { min-height: 0; flex: 1 1 auto; overflow: hidden; }
-.chat-card .chat-window { height: auto; min-height: 0; max-height: none; flex: 1 1 0%; }
-.chat-card .chat-input { flex: 0 0 auto; }
 
 @media (max-width: 1099px) and (min-width: 701px) {
   :root { --sidebar-width: 200px; }
@@ -728,11 +728,6 @@ th, td { padding: 8px 12px; }
   .cards { gap: 12px; margin: 12px 0 14px; }
   .card.stat { min-height: 110px; padding: 12px; }
   .card.stat .big { font-size: 1.65rem; }
-  .main:has(.chat) { height: auto; min-height: 100vh; overflow: visible; }
-  .content:has(.chat) { height: auto; min-height: calc(100vh - 56px); overflow: visible; padding: 16px; }
-  .chat:has(.chat-card) { height: auto; min-height: calc(100vh - 88px); }
-  .chat-card { min-height: 440px; }
-  .chat-card .chat-window { min-height: 250px; }
 }
 @media (max-width: 480px) {
   .content { padding: 16px; }
