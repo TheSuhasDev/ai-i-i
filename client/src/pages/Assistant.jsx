@@ -7,7 +7,7 @@ export default function Assistant() {
   const { messages, input, setInput, busy, error, configured, send, retry } = useAssistantChatContext();
 
   return (
-    <div className="mx-auto w-full max-w-5xl px-4 md:px-6 py-8">
+    <div className="assistant-page mx-auto w-full max-w-6xl px-4 md:px-6 pt-8 md:pt-10 pb-4">
       <PageHeader
         title="AI Inventory Assistant"
         subtitle="Ask questions about inventory, forecasts, suppliers, and reorder decisions."
@@ -25,7 +25,7 @@ export default function Assistant() {
       )}
 
       <section
-        className="card mt-6 flex h-[calc(100vh-18rem)] min-h-[480px] flex-col rounded-2xl border p-4"
+        className="card mt-6 flex h-[calc(100vh-22rem)] min-h-[420px] flex-col rounded-2xl border p-4"
         aria-label="Inventory assistant chat"
       >
         <div className="flex flex-wrap gap-2">
