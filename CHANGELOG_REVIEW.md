@@ -10,10 +10,10 @@
 
 | Category | Count | Description |
 | :--- | :--- | :--- |
-| **FIXED** | 9 | Critical bug fixes: search debounce loop, stale-while-revalidate hooks, RBAC authorization, negative delay days, schema constraints, and notification service |
-| **POLISHED** | 41 | Anti-flicker stability, layout-shift prevention, scrollbar-gutter, Recharts animations, visual charts, card views, activity feeds, and click-to-analyze UX for analytical pages |
+| **FIXED** | 10 | Critical bug fixes: route 404 for product intelligence, search debounce loop, stale-while-revalidate hooks, RBAC authorization, negative delay days, and schema constraints |
+| **POLISHED** | 42 | Anti-flicker stability, layout-shift prevention, scrollbar-gutter, Recharts animations, breadcrumb navigation, and click-to-analyze UX for analytical pages |
 | **ADDED** | 20 | New components, analysis wrappers (useAnalysis, AnalysisLoader, AnalysisReveal, AnalysisButton, AnalysisIdle, AnimatedNumber), pages, middleware, unit tests, and configs |
-| **TOTAL** | **70** | Total quality elevation changes applied |
+| **TOTAL** | **72** | Total quality elevation changes applied |
 
 ---
 
@@ -99,6 +99,8 @@
 | `client/src/pages/ModelPerformance.jsx` | **POLISHED** | Converted ML accuracy metrics and error distribution to click-to-analyze workflow with idle hero and stepper animation. | Explicitly presents ML model validation checks on demand. |
 | `client/src/pages/ProductInsight.jsx` | **POLISHED** | Converted single SKU deep intelligence (demand forecast, stockout probability, health score) to click-to-analyze with SKU-keyed session caching. | Prevents dual immediate API calls on product click, giving users instant page entrance and on-demand deep dive. |
 | `client/src/pages/Dashboard.jsx` | **POLISHED** | Integrated `AnalysisButton` and `AnalysisLoader` into "Refresh insights" action, preserving top KPI cards and animating their values with `AnimatedNumber`. | Provides visual rolling feedback during dashboard recomputation while keeping operational metrics visible. |
+| `client/src/App.jsx` | **FIXED** | Added `<Route path="products/:code" element={<ProductInsight />} />` alongside `product/:code`. | Resolves 404 "Page Not Found" error when clicking "View Intelligence →" from Alerts cards, Product list insights, or Inventory balances. |
+| `client/src/components/Layout.jsx` | **POLISHED** | Updated title watcher to recognize both `/product/` and `/products/`, and enriched breadcrumbs to render hierarchical sub-paths (`Home / Products / P039`). | Restores proper document titles and clickable parent navigation on product deep-dive pages. |
 
 ---
 

@@ -44,6 +44,7 @@ export default function App() {
           <Route path="supplier-risk" element={<SupplierRisk />} />
           <Route path="supplier-risk/:id/deliveries" element={<SupplierDeliveries />} />
           <Route path="product/:code" element={<ProductInsight />} />
+          <Route path="products/:code" element={<ProductInsight />} />
 
           <Route path="products" element={<ProductList />} />
           <Route path="inventory" element={<InventoryList />} />

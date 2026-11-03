@@ -67,7 +67,7 @@ export default function Layout() {
     else if (path === "/supplier-risk") title = "Supplier Risk";
     else if (path === "/products") title = "Products";
     else if (path === "/products/new") title = "New Product";
-    else if (path.startsWith("/products/")) title = "Product Intelligence";
+    else if (path.startsWith("/products/") || path.startsWith("/product/")) title = "Product Intelligence";
     else if (path === "/inventory") title = "Inventory";
     else if (path === "/inventory/new") title = "Adjust Inventory";
     else if (path === "/sales") title = "Sales";
@@ -289,14 +289,29 @@ export default function Layout() {
             </button>
             <nav className="breadcrumbs" aria-label="Breadcrumb">
               <NavLink to="/">Home</NavLink>
-              {location.pathname !== "/" && (
-                <>
-                  <span className="breadcrumb-separator">/</span>
-                  <span className="breadcrumb-current">
-                    {location.pathname.slice(1).split("/")[0].replace(/-/g, " ").replace(/\b\w/g, (c) => c.toUpperCase())}
-                  </span>
-                </>
-              )}
+              {location.pathname !== "/" && (() => {
+                const parts = location.pathname.slice(1).split("/").filter(Boolean);
+                if (parts.length <= 1) {
+                  return (
+                    <>
+                      <span className="breadcrumb-separator">/</span>
+                      <span className="breadcrumb-current">
+                        {parts[0].replace(/-/g, " ").replace(/\b\w/g, (c) => c.toUpperCase())}
+                      </span>
+                    </>
+                  );
+                }
+                const first = parts[0] === "product" ? "products" : parts[0];
+                const firstLabel = first.replace(/-/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+                return (
+                  <>
+                    <span className="breadcrumb-separator">/</span>
+                    <NavLink to={`/${first}`}>{firstLabel}</NavLink>
+                    <span className="breadcrumb-separator">/</span>
+                    <span className="breadcrumb-current">{parts.slice(1).join(" / ")}</span>
+                  </>
+                );
+              })()}
             </nav>
           </div>
           <div className="topbar-right">
