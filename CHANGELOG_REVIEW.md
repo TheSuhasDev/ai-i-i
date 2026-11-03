@@ -11,9 +11,9 @@
 | Category | Count | Description |
 | :--- | :--- | :--- |
 | **FIXED** | 10 | Critical bug fixes: route 404 for product intelligence, search debounce loop, stale-while-revalidate hooks, RBAC authorization, negative delay days, and schema constraints |
-| **POLISHED** | 46 | Assistant page responsive layout, sidebar brand header removal, Quick Jump UI harmonization, notification bell tokens, anti-flicker stability, and click-to-analyze UX |
+| **POLISHED** | 47 | Split-layout Login page redesign, Assistant viewport optimization, sidebar brand header removal, Quick Jump UI harmonization, and notification bell tokens |
 | **ADDED** | 20 | New components, analysis wrappers (useAnalysis, AnalysisLoader, AnalysisReveal, AnalysisButton, AnalysisIdle, AnimatedNumber), pages, middleware, unit tests, and configs |
-| **TOTAL** | **76** | Total quality elevation changes applied |
+| **TOTAL** | **77** | Total quality elevation changes applied |
 
 ---
 
@@ -105,6 +105,7 @@
 | `client/src/components/NotificationBell.jsx` | **POLISHED** | Completely elevated notification system to match application design language: replaced emoji bell with minimal SVG bell icon, added badge count pill, designed rich alert cards with danger/warning icon containers and status badges, added live indicator, and built direct "View all alerts" footer. | Transforms plain text notification list into a cohesive, high-end SaaS notification center. |
 | `client/src/components/Layout.jsx` | **POLISHED** | Removed redundant, cut-off `.brand` header ("Intelligence") from the sidebar drawer, and aligned `.sidebar` top offset cleanly beneath the topbar (`top: 59px`). | Eliminates clipping and awkward text collision with topbar navigation controls. |
 | `client/src/pages/Assistant.jsx` | **POLISHED** | Implemented viewport-locked chat card (`h-[calc(100vh-26rem)] min-h-[360px] flex flex-col`), messages area (`flex-1 min-h-0 overflow-y-auto`), pinned input row (`shrink-0 mt-4 flex gap-3`), tightened heading (`space-y-1 mt-3 mt-4`), container `py-6 max-w-6xl`, and eliminated parent double padding with `.content:has(.assistant-page) { padding: 0 !important; }`. | Guarantees zero page-level vertical scroll at 1080p, keeps composer/Send button permanently visible above fold, and centers content symmetrically across wide displays. |
+| `client/src/pages/Login.jsx` | **POLISHED** | Redesigned authentication view into a modern split layout (`grid lg:grid-cols-2`) with left project showcase panel, telemetry preview card, feature list with lucide-react icons, and preserved auth form/demo buttons. | Elevates first-touch landing experience to commercial SaaS standard while keeping all authentication workflows intact. |
 
 ---
 
