@@ -551,9 +551,9 @@ td code, li code { padding: 2px 5px; border-radius: 5px; color: var(--accent); b
   .sim-layout { grid-template-columns: minmax(250px, 300px) minmax(0, 1fr); gap: 14px; }
 }
 @media (max-width: 700px) {
-  .sidebar { position: fixed; left: 0; width: min(82vw, 300px); flex-basis: auto; transform: translateX(-102%); transition: transform 220ms ease; box-shadow: var(--shadow-pop); }
+  .sidebar { position: fixed; top: 59px; left: 0; width: min(82vw, 300px); height: calc(100vh - 59px); height: calc(100dvh - 59px); flex-basis: auto; transform: translateX(-102%); transition: transform 220ms ease; box-shadow: var(--shadow-pop); }
   .sidebar.mobile-open { transform: translateX(0); }
-  .sidebar-backdrop { position: fixed; z-index: 25; inset: 0; border: 0; background: rgb(0 0 0 / 58%); backdrop-filter: blur(3px); }
+  .sidebar-backdrop { position: fixed; z-index: 25; top: 59px; inset: 59px 0 0 0; border: 0; background: rgb(0 0 0 / 58%); backdrop-filter: blur(3px); }
   .topbar { justify-content: flex-end; min-height: 60px; gap: 8px; padding: 10px 14px; }
   .content { padding: 20px 14px 96px; }
   .page-head { align-items: flex-start; }
@@ -839,11 +839,11 @@ th, td { padding: 8px 12px; }
   .sidebar {
     position: fixed;
     z-index: 40;
-    top: 0;
+    top: 59px;
     left: 0;
     width: var(--sidebar-width);
-    height: 100vh;
-    height: 100dvh;
+    height: calc(100vh - 59px);
+    height: calc(100dvh - 59px);
     flex: 0 0 var(--sidebar-width);
     transform: translateX(-102%);
     border-right: 1px solid var(--border-strong);
@@ -855,12 +855,12 @@ th, td { padding: 8px 12px; }
   .sidebar-hover-zone {
     position: fixed;
     z-index: 41;
-    top: 0;
+    top: 59px;
     left: 0;
     display: none;
     width: 12px;
-    height: 100vh;
-    height: 100dvh;
+    height: calc(100vh - 59px);
+    height: calc(100dvh - 59px);
   }
   .mobile-menu-button { position: relative; z-index: 50; }
 }

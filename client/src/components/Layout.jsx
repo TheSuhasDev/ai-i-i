@@ -259,7 +259,6 @@ export default function Layout() {
         onFocusCapture={openForNavFocus}
         onBlurCapture={leaveNavFocus}
       >
-        <div className="brand">AI Inventory<br />Intelligence</div>
         <nav>
           {links
             .filter((l) => !l.adminOnly || isAdmin)

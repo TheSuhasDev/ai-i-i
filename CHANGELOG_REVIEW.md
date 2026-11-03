@@ -11,9 +11,9 @@
 | Category | Count | Description |
 | :--- | :--- | :--- |
 | **FIXED** | 10 | Critical bug fixes: route 404 for product intelligence, search debounce loop, stale-while-revalidate hooks, RBAC authorization, negative delay days, and schema constraints |
-| **POLISHED** | 44 | Quick Jump UI design harmonization, notification bell tokens, anti-flicker stability, layout-shift prevention, scrollbar-gutter, Recharts animations, and click-to-analyze UX |
+| **POLISHED** | 45 | Sidebar brand header removal & top offset alignment, Quick Jump UI design harmonization, notification bell tokens, anti-flicker stability, layout-shift prevention, scrollbar-gutter, and click-to-analyze UX |
 | **ADDED** | 20 | New components, analysis wrappers (useAnalysis, AnalysisLoader, AnalysisReveal, AnalysisButton, AnalysisIdle, AnimatedNumber), pages, middleware, unit tests, and configs |
-| **TOTAL** | **74** | Total quality elevation changes applied |
+| **TOTAL** | **75** | Total quality elevation changes applied |
 
 ---
 
@@ -103,6 +103,7 @@
 | `client/src/components/Layout.jsx` | **POLISHED** | Updated title watcher to recognize both `/product/` and `/products/`, and enriched breadcrumbs to render hierarchical sub-paths (`Home / Products / P039`). | Restores proper document titles and clickable parent navigation on product deep-dive pages. |
 | `client/src/components/CommandPalette.jsx` | **POLISHED** | Redesigned Quick Jump modal to fully inherit the design system tokens (`--surface`, `--border-strong`, `--shadow-pop`), replaced OS emojis with crisp SVG icons, integrated borderless input, sleek `<kbd>` badges, and custom slim scrollbar. | Eliminates mismatched blue background and OS emojis, seamlessly aligning the command palette with the SaaS theme. |
 | `client/src/components/NotificationBell.jsx` | **POLISHED** | Completely elevated notification system to match application design language: replaced emoji bell with minimal SVG bell icon, added badge count pill, designed rich alert cards with danger/warning icon containers and status badges, added live indicator, and built direct "View all alerts" footer. | Transforms plain text notification list into a cohesive, high-end SaaS notification center. |
+| `client/src/components/Layout.jsx` | **POLISHED** | Removed redundant, cut-off `.brand` header ("Intelligence") from the sidebar drawer, and aligned `.sidebar` top offset cleanly beneath the topbar (`top: 59px`). | Eliminates clipping and awkward text collision with topbar navigation controls. |
 
 ---
 
