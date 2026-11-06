@@ -69,6 +69,78 @@ export const addDaysInput = (days) => {
   return d.toLocaleDateString("en-CA");
 };
 
+export const fmtUnits = (n, d = 0) =>
+  n == null || Number.isNaN(Number(n)) ? "-" : `${num(n, d)} units`;
+
+export const fmtUnitsPerDay = (n, d = 1) =>
+  n == null || Number.isNaN(Number(n)) ? "-" : `${num(n, d)} units/day`;
+
+export const fmtRatio = (n, d = 2) =>
+  n == null || Number.isNaN(Number(n)) ? "-" : `${Number(n).toFixed(d)}x`;
+
+export const fmtRatioAsPct = (n, d = 0) => {
+  if (n == null || Number.isNaN(Number(n))) return "-";
+  const diff = (Number(n) - 1) * 100;
+  const rounded = Number(diff.toFixed(d));
+  if (rounded > 0) return `+${rounded}%`;
+  return `${rounded}%`;
+};
+
+export const fmtPct = (n, d = 0) => {
+  if (n == null || Number.isNaN(Number(n))) return "-";
+  const val = Number(n) <= 1 && Number(n) >= 0 ? Number(n) * 100 : Number(n);
+  return `${val.toFixed(d)}%`;
+};
+
+export const fmtRiskPct = (n) => {
+  if (n == null || Number.isNaN(Number(n))) return "-";
+  const v = Number(n);
+  if (v >= 99.5) return ">99%";
+  if (v < 0.5) return "<1%";
+  return `${Math.round(v)}%`;
+};
+
+export const fmtDays = (n, d = 1) =>
+  n == null || Number.isNaN(Number(n)) ? "-" : `${num(n, d)} days`;
+
+export const fmtSignedPct = (n, d = 1) => {
+  if (n == null || Number.isNaN(Number(n))) return "-";
+  const v = Number(n);
+  return `${v > 0 ? "+" : ""}${num(v, d)}%`;
+};
+
+export const formatWeekTick = (d) => {
+  if (!d) return "";
+  const str = String(d);
+  if (/^\d{4}-\d{2}-\d{2}/.test(str)) {
+    const [y, m, dt] = str.slice(0, 10).split("-");
+    const month = MONTH_NAMES[parseInt(m, 10) - 1] || "";
+    return `${parseInt(dt, 10)} ${month} '${y.slice(2)}`;
+  }
+  const date = new Date(d);
+  if (Number.isNaN(date.getTime())) return str;
+  const month = MONTH_NAMES[date.getMonth()] || "";
+  const yearStr = String(date.getFullYear()).slice(2);
+  return `${date.getDate()} ${month} '${yearStr}`;
+};
+
+export const SUPPLIER_NAMES = {
+  S1: "TechSource Distributors",
+  S2: "Sunrise Electronics",
+  S3: "Bharat Components",
+  S4: "Metro Office Supplies",
+  S5: "Orion Imports",
+  S6: "QuickShip Traders",
+  S7: "Value Wholesale Co",
+  S8: "Zenith Logistics",
+};
+
+export const fmtSupplierName = (id, name) => {
+  if (name && name !== id) return name;
+  if (!id) return "-";
+  return SUPPLIER_NAMES[id] || id;
+};
+
 export const normalizePoNumber = (po) => {
   if (!po) return "-";
   if (typeof po === "string") return po;

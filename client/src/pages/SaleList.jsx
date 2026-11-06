@@ -14,6 +14,7 @@ import ProductCell from "../components/ProductCell";
 import ProductSelect from "../components/ProductSelect";
 import { exportCsv } from "../utils/exportCsv";
 import { Area, AreaChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
+import { ChartCard, ChartTooltip, CHART_GRID_PROPS, X_AXIS_PROPS, Y_AXIS_PROPS } from "../components/charts";
 
 const SALE_COLS = [
   { header: "Date", key: "date", format: fmtDate },
@@ -106,20 +107,24 @@ export default function SaleList() {
       </div>
 
       {showChart && salesTimeSeries.length > 0 && (
-        <section className="card" style={{ marginBottom: "16px", padding: "16px" }}>
-          <h4 style={{ margin: "0 0 12px", fontSize: "14px", color: "var(--text-muted)" }}>Sales Revenue Trend on Current Page</h4>
-          <div style={{ width: "100%", height: 180 }}>
+        <ChartCard
+          title="Sales Revenue Trend"
+          subtitle="Daily sales revenue and unit volume across recorded transactions"
+          takeaway={`${salesTimeSeries.length} transaction entries; total page revenue ₹${num(salesTimeSeries.reduce((s, r) => s + (r.revenue || 0), 0), 0)}.`}
+          className="mb-4"
+        >
+          <div style={{ width: "100%", height: 210 }}>
             <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={salesTimeSeries} margin={{ top: 8, right: 16, bottom: 20, left: 10 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="var(--chart-grid, rgba(255,255,255,0.08))" />
-                <XAxis dataKey="date" interval="preserveStartEnd" angle={-15} textAnchor="end" height={40} tick={{ fontSize: 11 }} />
-                <YAxis width={60} tickFormatter={(v) => `₹${v >= 1000 ? (v / 1000).toFixed(0) + 'k' : v}`} tick={{ fontSize: 11 }} />
-                <Tooltip formatter={(value, _name, item) => [`${money(value)} (${item.payload.units} units)`, item.payload.product]} />
-                <Area type="monotone" dataKey="revenue" stroke="var(--brand, #3b82f6)" fill="var(--brand-soft, rgba(59, 130, 246, 0.2))" isAnimationActive={false} />
+              <AreaChart data={salesTimeSeries} margin={{ top: 15, right: 16, bottom: 25, left: 10 }}>
+                <CartesianGrid {...CHART_GRID_PROPS} />
+                <XAxis dataKey="date" {...X_AXIS_PROPS} interval="preserveStartEnd" angle={-15} textAnchor="end" height={45} tick={{ fontSize: 11 }} />
+                <YAxis {...Y_AXIS_PROPS} width={65} tickFormatter={(v) => `₹${v >= 1000 ? (v / 1000).toFixed(0) + "k" : v}`} label={{ value: "Revenue", angle: -90, position: "insideLeft", offset: 10, fill: "var(--muted)", fontSize: 11 }} />
+                <Tooltip content={<ChartTooltip unit=" INR" />} />
+                <Area type="monotone" dataKey="revenue" name="Revenue" stroke="var(--chart-1)" fill="var(--chart-1)" fillOpacity={0.15} strokeWidth={2} isAnimationActive={false} />
               </AreaChart>
             </ResponsiveContainer>
           </div>
-        </section>
+        </ChartCard>
       )}
 
       {(error || actionError) && <div className="alert">{error || actionError}</div>}

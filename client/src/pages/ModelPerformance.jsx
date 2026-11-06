@@ -1,11 +1,12 @@
 import { useState, useCallback } from "react";
-import { Bar, BarChart, CartesianGrid, Legend, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
+import { Bar, BarChart, CartesianGrid, LabelList, Legend, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { performanceService } from "../services";
 import useAnalysis from "../hooks/useAnalysis";
 import useToast from "../context/useToast";
 import { formatDate, humanize, num } from "../utils/format";
 import PageHeader from "../components/PageHeader";
 import { AnalysisButton, AnalysisIdle, AnalysisLoader, AnalysisReveal } from "../components/analysis";
+import { ChartCard, ChartTooltip, CHART_GRID_PROPS, X_AXIS_PROPS, Y_AXIS_PROPS } from "../components/charts";
 
 const fetchPerf = () => performanceService.get();
 const pct = (v, d = 1) => (v == null ? "-" : `${num(v, d)}%`);
@@ -52,19 +53,33 @@ function ForecastSection({ f }) {
       </div>
       <div className="grid2" style={{ marginTop: 16 }}>
         <div>
-          <h4>WAPE by horizon (lower is better)</h4>
-          <ResponsiveContainer width="100%" height={240}>
-            <BarChart data={chart} margin={{ top: 10, right: 10, bottom: 0, left: 0 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="var(--chart-grid)" />
-              <XAxis dataKey="horizon" />
-              <YAxis unit="%" width={44} />
-              <Tooltip />
-              <Legend />
-              <Bar dataKey="Naive" fill="var(--muted)" isAnimationActive={false} />
-              <Bar dataKey="4-week average" fill="var(--chart-2)" isAnimationActive={false} />
-              <Bar dataKey="Model" fill="var(--chart-1)" isAnimationActive={false} />
-            </BarChart>
-          </ResponsiveContainer>
+          <ChartCard
+            title="Forecast Accuracy (WAPE)"
+            subtitle="Comparing model error to baseline moving averages (lower is better)."
+            jargon={["WAPE", "MAPE", "MAE", "RMSE"]}
+            takeaway={results["1"]?.wape_gain_vs_ma4_pct != null ? `${num(results["1"].wape_gain_vs_ma4_pct, 1)}% more accurate than 4-week moving average (1-week horizon).` : "Lower WAPE indicates higher forecasting accuracy."}
+          >
+            <div style={{ width: "100%", height: 250 }}>
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={chart} margin={{ top: 20, right: 15, bottom: 5, left: 5 }}>
+                  <CartesianGrid {...CHART_GRID_PROPS} />
+                  <XAxis dataKey="horizon" {...X_AXIS_PROPS} />
+                  <YAxis {...Y_AXIS_PROPS} unit="%" width={44} />
+                  <Tooltip content={<ChartTooltip unit="%" />} />
+                  <Legend verticalAlign="top" wrapperStyle={{ paddingBottom: 8, fontSize: 12 }} />
+                  <Bar dataKey="Naive" fill="var(--muted)" isAnimationActive={false}>
+                    <LabelList dataKey="Naive" position="top" formatter={(v) => `${num(v, 0)}%`} fontSize={10} fill="var(--muted)" />
+                  </Bar>
+                  <Bar dataKey="4-week average" fill="var(--chart-2)" isAnimationActive={false}>
+                    <LabelList dataKey="4-week average" position="top" formatter={(v) => `${num(v, 0)}%`} fontSize={10} fill="var(--muted)" />
+                  </Bar>
+                  <Bar dataKey="Model" fill="var(--chart-1)" isAnimationActive={false}>
+                    <LabelList dataKey="Model" position="top" formatter={(v) => `${num(v, 0)}%`} fontSize={10} fill="var(--chart-1)" fontWeight="bold" />
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          </ChartCard>
         </div>
         <div>
           <h4>Improvement and interval coverage</h4>
@@ -150,18 +165,26 @@ function RiskSection({ r }) {
           </p>
         </div>
         <div>
-          <h4>Calibration: predicted risk vs actual stockout rate</h4>
-          <ResponsiveContainer width="100%" height={240}>
-            <LineChart data={cal} margin={{ top: 10, right: 10, bottom: 0, left: 0 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="var(--chart-grid)" />
-              <XAxis dataKey="bin" />
-              <YAxis unit="%" width={44} domain={[0, 100]} />
-              <Tooltip formatter={(v) => `${num(v, 0)}%`} />
-              <Legend />
-              <Line dataKey="predicted" name="Predicted" stroke="var(--muted)" strokeDasharray="6 4" isAnimationActive={false} />
-              <Line dataKey="actual" name="Actual" stroke="var(--chart-1)" strokeWidth={2} isAnimationActive={false} />
-            </LineChart>
-          </ResponsiveContainer>
+          <ChartCard
+            title="Stockout Risk Calibration"
+            subtitle="Does a 70% predicted risk actually produce a stockout 70% of the time?"
+            jargon={["F1", "ROC-AUC", "PR-AUC"]}
+            takeaway="Predicted risk percentages align closely with actual stockout frequencies."
+          >
+            <div style={{ width: "100%", height: 250 }}>
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart data={cal} margin={{ top: 15, right: 15, bottom: 5, left: 5 }}>
+                  <CartesianGrid {...CHART_GRID_PROPS} />
+                  <XAxis dataKey="bin" {...X_AXIS_PROPS} />
+                  <YAxis {...Y_AXIS_PROPS} unit="%" width={44} domain={[0, 100]} />
+                  <Tooltip content={<ChartTooltip unit="%" />} />
+                  <Legend verticalAlign="top" wrapperStyle={{ paddingBottom: 8, fontSize: 12 }} />
+                  <Line dataKey="predicted" name="Ideal Baseline" stroke="var(--muted)" strokeDasharray="6 4" dot={false} isAnimationActive={false} />
+                  <Line dataKey="actual" name="Trained Model" stroke="var(--chart-1)" strokeWidth={2.5} dot={{ r: 4 }} isAnimationActive={false} />
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
+          </ChartCard>
         </div>
       </div>
     </div>
@@ -210,21 +233,37 @@ function AnomalySection({ a }) {
 }
 
 function ImportanceChart({ title, data }) {
-  const rows = Object.entries(data || {}).slice(0, 8).map(([name, value]) => ({ name, value }));
+  const rows = Object.entries(data || {})
+    .slice(0, 8)
+    .map(([name, value]) => ({
+      name: humanize(name),
+      rawName: name,
+      value: Number(num(value, 3)),
+    }));
   if (!rows.length) return null;
+  const topFeature = rows[0]?.name;
+
   return (
-    <div>
-      <h4>{title}</h4>
-      <ResponsiveContainer width="100%" height={260}>
-        <BarChart data={rows} layout="vertical" margin={{ top: 5, right: 20, bottom: 0, left: 20 }}>
-          <CartesianGrid strokeDasharray="3 3" stroke="var(--chart-grid)" />
-          <XAxis type="number" />
-          <YAxis type="category" dataKey="name" width={110} />
-          <Tooltip />
-          <Bar dataKey="value" name="Permutation importance" fill="var(--chart-1)" isAnimationActive={false} />
-        </BarChart>
-      </ResponsiveContainer>
-    </div>
+    <ChartCard
+      title={title}
+      subtitle="Which signals drive the model's predictions the most?"
+      jargon={["SHAP"]}
+      takeaway={topFeature ? `Primary driver: ${topFeature}` : undefined}
+    >
+      <div style={{ width: "100%", height: 260 }}>
+        <ResponsiveContainer width="100%" height="100%">
+          <BarChart data={rows} layout="vertical" margin={{ top: 10, right: 35, bottom: 0, left: 10 }}>
+            <CartesianGrid {...CHART_GRID_PROPS} />
+            <XAxis type="number" {...X_AXIS_PROPS} />
+            <YAxis type="category" dataKey="name" {...Y_AXIS_PROPS} width={130} tick={{ fontSize: 11 }} />
+            <Tooltip content={<ChartTooltip />} />
+            <Bar dataKey="value" name="Importance Score" fill="var(--chart-1)" isAnimationActive={false} radius={[0, 4, 4, 0]}>
+              <LabelList dataKey="value" position="right" fontSize={10} fill="var(--muted)" />
+            </Bar>
+          </BarChart>
+        </ResponsiveContainer>
+      </div>
+    </ChartCard>
   );
 }
 

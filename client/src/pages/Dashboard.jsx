@@ -15,36 +15,69 @@ import Icon from "../components/Icon";
 import ProductCell from "../components/ProductCell";
 import { formatDate, fmtDate, num } from "../utils/format";
 import StaleDataBanner from "../components/StaleDataBanner";
-import { Bar, BarChart, CartesianGrid, Cell, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
+import { Bar, BarChart, CartesianGrid, Cell, LabelList, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
+import { ChartCard, ChartTooltip, CHART_GRID_PROPS, X_AXIS_PROPS, Y_AXIS_PROPS } from "../components/charts";
 import { AnalysisButton, AnalysisLoader, AnalysisReveal, AnimatedNumber } from "../components/analysis";
 
 const fetchSummary = () => insightService.list();
-const TREND_PATTERNS = ["increasing", "decreasing", "stable", "seasonal", "trend + seasonal"];
+const TREND_PATTERNS = ["trend + seasonal", "seasonal", "increasing", "stable", "decreasing"];
+const PATTERN_LABELS = {
+  increasing: "Growing demand",
+  decreasing: "Declining demand",
+  stable: "Stable demand",
+  seasonal: "Seasonal cycles",
+  "trend + seasonal": "Growing + seasonal",
+};
 const TREND_COLORS = {
-  increasing: "var(--success)",
-  decreasing: "var(--danger)",
-  stable: "var(--muted)",
-  seasonal: "var(--accent)",
-  "trend + seasonal": "var(--warning)",
+  increasing: "var(--success, #10b981)",
+  decreasing: "var(--danger, #ef4444)",
+  stable: "var(--muted, #9ca3af)",
+  seasonal: "var(--accent, #818cf8)",
+  "trend + seasonal": "var(--warning, #f59e0b)",
 };
 
-function TrendLeaders({ title, items, emptyText }) {
+function TrendLeaders({ title, items, emptyText, type = "up" }) {
+  const isUp = type === "up";
   return (
-    <div className="trend-leaders">
-      <h4>{title}</h4>
+    <div className="trend-leaders" style={{ background: "var(--surface-raised, #171c27)", padding: "14px 16px", borderRadius: "10px" }}>
+      <div style={{ display: "flex", alignItems: "center", gap: "6px", marginBottom: "10px" }}>
+        <span style={{ color: isUp ? "var(--success, #10b981)" : "var(--danger, #ef4444)", fontWeight: 700, fontSize: "14px" }}>
+          {isUp ? "↑" : "↓"}
+        </span>
+        <h4 style={{ margin: 0, fontSize: "0.92rem", fontWeight: 600 }}>{title}</h4>
+      </div>
       {items.length ? (
-        <ol>
+        <ol style={{ listStyle: "none", padding: 0, margin: 0, display: "flex", flexDirection: "column", gap: "8px" }}>
           {items.map((item) => {
             const change = item.trend.yoy_change_pct;
             return (
-              <li key={item.code}>
+              <li
+                key={item.code}
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  gap: "10px",
+                  padding: "6px 8px",
+                  borderRadius: "6px",
+                  background: "var(--surface, #11151e)",
+                  border: "1px solid var(--border, #252b39)",
+                }}
+              >
                 <ProductCell product={item} size="md" imageList={items} />
-                <strong>{change > 0 ? "+" : ""}{num(change, 1)}%</strong>
+                <span
+                  className={`pill ${change > 0 ? "status-healthy" : "status-critical"}`}
+                  style={{ fontSize: "11px", fontWeight: 700, padding: "2px 8px" }}
+                >
+                  {change > 0 ? "+" : ""}{num(change, 1)}%
+                </span>
               </li>
             );
           })}
         </ol>
-      ) : <p className="muted small">{emptyText}</p>}
+      ) : (
+        <p className="muted small">{emptyText}</p>
+      )}
     </div>
   );
 }
@@ -60,6 +93,7 @@ export default function Dashboard() {
   const [ml, setMl] = useState("loading");
   const [lastChecked, setLastChecked] = useState(() => new Date());
   const [recentPOs, setRecentPOs] = useState([]);
+  const [selectedHealthStatus, setSelectedHealthStatus] = useState(null);
 
   useEffect(() => {
     api.get("/health").then((r) => setServer(r.data.status)).catch(() => setServer("down"));
@@ -94,12 +128,17 @@ export default function Dashboard() {
     const trend = item.data?.trend;
     return trend?.pattern ? [{ code: item.productCode, name: item.data?.name || item.productCode, trend }] : [];
   });
-  const trendPatternCounts = TREND_PATTERNS.map((pattern) => ({
+  const sortedTrendPatterns = TREND_PATTERNS.map((pattern) => ({
     pattern,
+    label: PATTERN_LABELS[pattern] || pattern,
     products: trendProducts.filter(({ trend }) =>
-      pattern === "trend + seasonal" ? trend.pattern.includes("+ seasonal") : trend.pattern === pattern
+      pattern === "trend + seasonal" ? trend.pattern?.includes("+ seasonal") : trend.pattern === pattern
     ).length,
-  }));
+  })).sort((a, b) => b.products - a.products);
+
+  const seasonalTotal = sortedTrendPatterns.filter((p) => p.pattern.includes("seasonal")).reduce((s, p) => s + p.products, 0);
+  const growingTotal = sortedTrendPatterns.find((p) => p.pattern === "increasing")?.products || 0;
+  const trendTakeaway = `${seasonalTotal} product${seasonalTotal === 1 ? "" : "s"} experience seasonal surges; ${growingTotal} show${growingTotal === 1 ? "s" : ""} steady demand growth.`;
   const increasing = trendProducts
     .filter(({ trend }) => trend.trend === "increasing")
     .sort((a, b) => b.trend.yoy_change_pct - a.trend.yoy_change_pct)
@@ -220,7 +259,10 @@ export default function Dashboard() {
                       ? `${num(item.daysOfCover, 0)}d stock vs ${num(item.daysToDelivery, 0)}d delivery`
                       : `${num(item.riskPct, 0)}% stockout risk`;
                     const qty = item.orderQty || item.data?.reorder?.order_qty || 1;
-                    const supId = item.data?.reorder?.supplier_id || item.data?.supplier?.id;
+                    const reorder = item.data?.reorder;
+                    const supId = (reorder?.supplier_risk_level === "High" && reorder?.alternate_supplier?.supplier_id)
+                      ? reorder.alternate_supplier.supplier_id
+                      : reorder?.supplier_id || item.data?.supplier?.id;
                     return (
                       <li key={item._id} className="attention-item" style={{ padding: "8px 0" }}>
                         <ProductCell product={{ code: item.productCode, name: item.data?.name }} size="sm" imageList={criticalProducts} />
@@ -254,14 +296,15 @@ export default function Dashboard() {
               {recentPOs.length ? (
                 <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
                   {recentPOs.map((po) => {
-                    const totalQty = (po.items || []).reduce((acc, it) => acc + (it.quantityOrdered || 0), 0);
-                    const recQty = (po.items || []).reduce((acc, it) => acc + (it.quantityReceived || 0), 0);
+                    const totalQty = po.qtyOrdered || (po.items || []).reduce((acc, it) => acc + (it.quantityOrdered || 0), 0) || 0;
+                    const recQty = po.qtyReceived != null ? po.qtyReceived : (po.items || []).reduce((acc, it) => acc + (it.quantityReceived || 0), 0);
                     const pct = totalQty > 0 ? Math.round((recQty / totalQty) * 100) : 0;
+                    const poName = po.poNumber || po.orderNumber || "Purchase Order";
                     return (
                       <div key={po._id} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "8px 10px", background: "var(--bg-subtle, rgba(0,0,0,0.02))", borderRadius: "6px", border: "1px solid var(--border)" }}>
                         <div>
                           <div style={{ fontWeight: 600, fontSize: "0.85rem" }}>
-                            <Link to={`/purchase-orders/${po._id}`} style={{ color: "var(--text)" }}>{po.orderNumber}</Link>
+                            <Link to={`/purchase-orders/${po._id}`} style={{ color: "var(--text)" }}>{poName}</Link>
                             <span className="muted" style={{ fontWeight: 400, marginLeft: "6px" }}>• {po.supplier?.name || "Supplier"}</span>
                           </div>
                           <div className="muted small" style={{ fontSize: "0.75rem", marginTop: "2px" }}>
@@ -280,65 +323,112 @@ export default function Dashboard() {
           </div>
 
           <div className="grid2">
-            <div className="card">
-              <h3>Health distribution</h3>
-              <HealthChart items={items} />
-            </div>
-            <div className="card">
-              <h3><abbr title="ABC ranks products by value contribution; XYZ groups them by demand variability">ABC-XYZ matrix</abbr></h3>
-              <AbcXyzMatrix items={items} />
-            </div>
+            <HealthChart
+              items={items}
+              onSelectStatus={(status) => setSelectedHealthStatus((prev) => (prev === status ? null : status))}
+              selectedStatus={selectedHealthStatus}
+            />
+            <AbcXyzMatrix items={items} />
           </div>
 
-          <section className="card trend-dashboard">
-            <h3>Trend &amp; Seasonality</h3>
-            {loading ? <p className="muted">Loading saved trend data...</p> : error ? (
+          <ChartCard
+            title="What demand patterns are driving our products?"
+            subtitle="Categorizes demand velocity and seasonality so purchasing can anticipate spikes."
+            jargon={["YoY", "80% range"]}
+            takeaway={trendTakeaway}
+            takeawayTone="info"
+            ariaLabel="Trend and seasonality breakdown chart"
+          >
+            {loading ? (
+              <p className="muted">Loading saved trend data...</p>
+            ) : error ? (
               <div className="alert">Trend data unavailable: {error}</div>
             ) : trendProducts.length === 0 ? (
               <p className="muted">No saved trend data yet. Refresh insights to compute product trends.</p>
             ) : (
               <>
                 {trendProducts.length < items.length && (
-                  <p className="muted small">Trend data is missing for {items.length - trendProducts.length} product(s); refresh insights to update it.</p>
+                  <p className="muted small" style={{ marginBottom: "10px" }}>
+                    Trend data is missing for {items.length - trendProducts.length} product(s); refresh insights to update it.
+                  </p>
                 )}
-                <div className="trend-count-chart">
-                  <ResponsiveContainer width="100%" height={250}>
-                    <BarChart data={trendPatternCounts} margin={{ top: 8, right: 16, bottom: 10, left: 0 }}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="var(--chart-grid)" />
-                      <XAxis dataKey="pattern" interval={0} angle={-10} textAnchor="end" height={55} />
-                      <YAxis allowDecimals={false} width={40} />
-                      <Tooltip />
-                      <Bar dataKey="products" name="Products" isAnimationActive={false}>
-                        {trendPatternCounts.map((row) => <Cell key={row.pattern} fill={TREND_COLORS[row.pattern]} />)}
+                <div style={{ width: "100%", height: 210 }}>
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart
+                      layout="vertical"
+                      data={sortedTrendPatterns}
+                      margin={{ top: 8, right: 35, bottom: 8, left: 15 }}
+                    >
+                      <CartesianGrid {...CHART_GRID_PROPS} horizontal={false} vertical={true} />
+                      <XAxis type="number" allowDecimals={false} {...X_AXIS_PROPS} />
+                      <YAxis
+                        type="category"
+                        dataKey="label"
+                        width={140}
+                        {...Y_AXIS_PROPS}
+                        tick={{ fill: "var(--text)", fontSize: 12, fontWeight: 500 }}
+                      />
+                      <Tooltip
+                        content={<ChartTooltip formatter={(value) => [`${value} products`, "Products"]} />}
+                      />
+                      <Bar dataKey="products" name="Products" radius={[0, 4, 4, 0]} isAnimationActive={false}>
+                        <LabelList
+                          dataKey="products"
+                          position="right"
+                          offset={8}
+                          fill="var(--text)"
+                          fontSize={12}
+                          fontWeight={600}
+                        />
+                        {sortedTrendPatterns.map((row) => (
+                          <Cell key={row.pattern} fill={TREND_COLORS[row.pattern]} />
+                        ))}
                       </Bar>
                     </BarChart>
                   </ResponsiveContainer>
                 </div>
-                <div className="grid2">
-                  <TrendLeaders title="Top increasing products" items={increasing} emptyText="No increasing products found." />
-                  <TrendLeaders title="Top decreasing products" items={decreasing} emptyText="No decreasing products found." />
+                <div className="grid2" style={{ marginTop: "16px" }}>
+                  <TrendLeaders title="Top increasing products" items={increasing} emptyText="No increasing products found." type="up" />
+                  <TrendLeaders title="Top decreasing products" items={decreasing} emptyText="No decreasing products found." type="down" />
                 </div>
               </>
             )}
-          </section>
+          </ChartCard>
 
-          <h3>Most urgent products</h3>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: "24px", marginBottom: "8px" }}>
+            <h3 style={{ margin: 0 }}>
+              {selectedHealthStatus ? `Products in ${selectedHealthStatus} status` : "Most urgent products"}
+            </h3>
+            {selectedHealthStatus && (
+              <button
+                type="button"
+                className="btn small"
+                onClick={() => setSelectedHealthStatus(null)}
+                style={{ fontSize: "12px", padding: "3px 10px" }}
+              >
+                Show all products
+              </button>
+            )}
+          </div>
           <div className="table-wrap">
             <table>
               <thead>
                 <tr><th>Product</th><th>Priority</th><th>Health</th><th className="numeric">Stockout risk</th><th className="numeric">Days of stock left</th><th className="numeric">Order qty</th></tr>
               </thead>
               <tbody>
-                {items.slice(0, 8).map((i) => (
-                  <tr key={i._id}>
-                    <td><ProductCell product={{ code: i.productCode, name: i.data?.name }} size="md" imageList={items} /></td>
-                    <td><Pill value={i.priority} /></td>
-                    <td><Pill value={i.healthStatus} /> {num(i.healthScore, 0)}</td>
-                    <td className="numeric"><span className="inline-meter"><span style={{ width: `${Math.min(100, Math.max(0, i.riskPct))}%` }} /></span>{num(i.riskPct, 0)}%</td>
-                    <td className="numeric">{num(i.daysOfCover, 1)}</td>
-                    <td className="numeric">{i.orderQty}</td>
-                  </tr>
-                ))}
+                {items
+                  .filter((i) => !selectedHealthStatus || i.healthStatus === selectedHealthStatus)
+                  .slice(0, 8)
+                  .map((i) => (
+                    <tr key={i._id}>
+                      <td><ProductCell product={{ code: i.productCode, name: i.data?.name }} size="md" imageList={items} /></td>
+                      <td><Pill value={i.priority} /></td>
+                      <td><Pill value={i.healthStatus} /> {num(i.healthScore, 0)}</td>
+                      <td className="numeric"><span className="inline-meter"><span style={{ width: `${Math.min(100, Math.max(0, i.riskPct))}%` }} /></span>{num(i.riskPct, 0)}%</td>
+                      <td className="numeric">{num(i.daysOfCover, 1)}</td>
+                      <td className="numeric">{i.orderQty}</td>
+                    </tr>
+                  ))}
               </tbody>
             </table>
           </div>

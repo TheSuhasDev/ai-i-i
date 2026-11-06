@@ -1,4 +1,5 @@
-import { useCallback, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
+import { Bar, BarChart, CartesianGrid, Legend, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { anomalyService } from "../services";
 import useAnalysis from "../hooks/useAnalysis";
 import useToast from "../context/useToast";
@@ -9,6 +10,7 @@ import ProductCell from "../components/ProductCell";
 import Pagination from "../components/Pagination";
 import { exportCsv } from "../utils/exportCsv";
 import { AnalysisButton, AnalysisIdle, AnalysisLoader, AnalysisReveal } from "../components/analysis";
+import { ChartCard, ChartTooltip, CHART_GRID_PROPS, X_AXIS_PROPS, Y_AXIS_PROPS } from "../components/charts";
 
 const ANOMALY_COLS = [
   { header: "Date", key: "date", format: formatDate },
@@ -66,10 +68,29 @@ export default function Anomalies() {
   }, [run]);
 
   const res = data?.data;
-  const rows = res?.anomalies ?? [];
+  const rows = useMemo(() => res?.anomalies ?? [], [res?.anomalies]);
   const pagination = res?.pagination ?? null;
   const types = Object.keys(res?.by_type ?? {});
   const grouped = groupAnomalies(rows);
+
+  const timelineData = useMemo(() => {
+    if (!rows.length) return [];
+    const map = {};
+    for (const r of rows) {
+      const d = r.date ? r.date.slice(0, 10) : "";
+      if (!d) continue;
+      const label = formatDate(d);
+      if (!map[label]) {
+        map[label] = { label, rawDate: d, total: 0 };
+      }
+      const tKey = humanize(r.type);
+      map[label][tKey] = (map[label][tKey] || 0) + 1;
+      map[label].total += 1;
+    }
+    return Object.values(map)
+      .sort((a, b) => a.rawDate.localeCompare(b.rawDate))
+      .slice(-25);
+  }, [rows]);
 
   const toggleExpand = (key) => {
     setExpandedKeys((prev) => {
@@ -148,6 +169,40 @@ export default function Anomalies() {
           </button>
         ))}
       </div>
+
+      {timelineData.length > 0 && (
+        <ChartCard
+          title="Anomaly Timeline by Type"
+          subtitle="When did unusual spikes, dropouts, or supplier delays occur?"
+          takeaway={`${res.total ?? rows.length} anomalies detected across ${days} days${types.length ? `, mostly in ${humanize(types[0])}` : ""}.`}
+          className="my-4"
+        >
+          <div style={{ width: "100%", height: 220 }}>
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={timelineData} margin={{ top: 15, right: 15, bottom: 20, left: 0 }}>
+                <CartesianGrid {...CHART_GRID_PROPS} />
+                <XAxis dataKey="label" {...X_AXIS_PROPS} angle={-20} textAnchor="end" height={45} tick={{ fontSize: 11 }} />
+                <YAxis {...Y_AXIS_PROPS} allowDecimals={false} width={35} />
+                <Tooltip content={<ChartTooltip />} />
+                <Legend verticalAlign="top" wrapperStyle={{ paddingBottom: 8, fontSize: 12 }} />
+                {types.map((t, idx) => {
+                  const hName = humanize(t);
+                  const color = t.includes("sales")
+                    ? "var(--chart-1)"
+                    : t.includes("stock")
+                    ? "var(--warning)"
+                    : t.includes("delay")
+                    ? "var(--danger)"
+                    : `var(--chart-${(idx % 4) + 1})`;
+                  return (
+                    <Bar key={t} dataKey={hName} stackId="a" fill={color} isAnimationActive={false} />
+                  );
+                })}
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        </ChartCard>
+      )}
 
       <div className="toolbar">
         <select value={days} onChange={(e) => handleDaysChange(e.target.value)}>

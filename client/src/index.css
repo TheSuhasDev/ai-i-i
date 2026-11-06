@@ -1817,3 +1817,61 @@ table .product-thumb {
   color: var(--accent-strong);
 }
 
+/* Product Detail Header Layout */
+.product-detail-header-block {
+  display: flex;
+  align-items: flex-start;
+  gap: 20px;
+}
+
+.product-detail-meta-col {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+
+.product-detail-name {
+  margin: 0;
+  font-size: 1.75rem;
+  font-weight: 700;
+  line-height: 1.2;
+  color: var(--text);
+}
+
+.product-detail-sku {
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+
+.product-detail-badges-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px 20px;
+  margin-top: 6px;
+  font-size: 0.85rem;
+}
+
+.product-detail-badges-row .meta-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.product-detail-badges-row .meta-label {
+  color: var(--muted);
+}
+
+.product-detail-badges-row .meta-value {
+  color: var(--text);
+  font-weight: 600;
+}
+
+@media (max-width: 640px) {
+  .product-detail-header-block {
+    flex-direction: column;
+    align-items: stretch;
+  }
+}
+
+

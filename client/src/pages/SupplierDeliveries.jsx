@@ -9,8 +9,9 @@ import ProductCell from "../components/ProductCell";
 import Pill from "../components/Pill";
 import { exportCsv } from "../utils/exportCsv";
 import {
-  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine,
+  BarChart, Bar, Cell, LabelList, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine,
 } from "recharts";
+import { ChartCard, ChartTooltip, CHART_GRID_PROPS, X_AXIS_PROPS, Y_AXIS_PROPS } from "../components/charts";
 
 const DEL_COLS = [
   { header: "PO Number", key: "poNumber" },
@@ -82,19 +83,47 @@ export default function SupplierDeliveries() {
           </div>
 
           {chartData.length > 0 && (
-            <section className="card" style={{ marginBottom: "20px" }}>
-              <h3>Delay per delivered order</h3>
-              <ResponsiveContainer width="100%" height={220}>
-                <BarChart data={chartData} margin={{ top: 8, right: 16, bottom: 40, left: 0 }}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="var(--chart-grid)" />
-                  <XAxis dataKey="name" angle={-35} textAnchor="end" interval={0} tick={{ fontSize: 11 }} />
-                  <YAxis unit="d" />
-                  <Tooltip formatter={(v) => [`${v} days`, "Delay"]} />
-                  <ReferenceLine y={0} stroke="var(--border)" />
-                  <Bar dataKey="delay" fill="var(--accent)" name="Delay (days)" />
-                </BarChart>
-              </ResponsiveContainer>
-            </section>
+            <ChartCard
+              title="Shipment Delay per Purchase Order"
+              subtitle="How many days early or late did each shipment arrive?"
+              takeaway={
+                avgDelay != null
+                  ? `Average delay is ${avgDelay} days across ${delivered.length} delivered orders. Green bars arrived on or before the due date.`
+                  : ""
+              }
+              className="mb-4"
+            >
+              <div style={{ width: "100%", height: 230 }}>
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={chartData} margin={{ top: 20, right: 16, bottom: 40, left: 10 }}>
+                    <CartesianGrid {...CHART_GRID_PROPS} />
+                    <XAxis dataKey="name" {...X_AXIS_PROPS} angle={-35} textAnchor="end" interval={0} tick={{ fontSize: 11 }} />
+                    <YAxis
+                      {...Y_AXIS_PROPS}
+                      width={45}
+                      label={{ value: "Days", angle: -90, position: "insideLeft", offset: 10, fill: "var(--muted)", fontSize: 11 }}
+                    />
+                    <Tooltip content={<ChartTooltip unit=" days" />} />
+                    <ReferenceLine y={0} stroke="var(--muted)" strokeDasharray="3 3" />
+                    <Bar dataKey="delay" name="Delay" radius={[3, 3, 0, 0]} isAnimationActive={false}>
+                      <LabelList
+                        dataKey="delay"
+                        position="top"
+                        formatter={(v) => (v > 0 ? `+${v}d` : `${v}d`)}
+                        fontSize={10}
+                        fill="var(--text)"
+                      />
+                      {chartData.map((entry) => (
+                        <Cell
+                          key={entry.name}
+                          fill={entry.delay <= 0 ? "var(--success)" : entry.delay > 5 ? "var(--danger)" : "var(--warning)"}
+                        />
+                      ))}
+                    </Bar>
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            </ChartCard>
           )}
 
           <div className="toolbar">

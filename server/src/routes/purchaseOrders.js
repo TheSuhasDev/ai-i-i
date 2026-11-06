@@ -23,9 +23,19 @@ export function withDelay(data, existing = {}) {
     }
     if (!out.status) out.status = "Delivered";
   }
+
+  // If 100% of the ordered quantity has been received, ensure status is marked as Delivered
+  const ordered = Number(out.qtyOrdered ?? existing.qtyOrdered ?? 0);
+  const received = Number(out.qtyReceived ?? existing.qtyReceived ?? 0);
+  if (ordered > 0 && received >= ordered && (!out.status || out.status === "In Transit" || out.status === "Pending")) {
+    out.status = "Delivered";
+    if (!out.actualDeliveryDate && !existing.actualDeliveryDate) {
+      out.actualDeliveryDate = new Date();
+    }
+  }
+
   if (out.status === "Delivered") {
     if (!out.qtyReceived || Number(out.qtyReceived) === 0) {
-      const ordered = out.qtyOrdered ?? existing.qtyOrdered;
       if (ordered) out.qtyReceived = ordered;
     }
   }

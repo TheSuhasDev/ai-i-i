@@ -177,6 +177,12 @@ export default function Alerts() {
           ) : (
             groupedRows.map((row) => {
               const borderColor = row.highestPriority === "Critical" ? "var(--danger)" : row.highestPriority === "High" ? "var(--warning)" : "var(--accent)";
+              const urgent = row.alerts.filter((a) => a.priority === "Critical" || a.priority === "High");
+              const lowMed = row.alerts.filter((a) => a.priority === "Medium" || a.priority === "Low");
+              const isExpanded = showLowMedium || priority === "Medium" || priority === "Low" || expandedRows.has(row.code);
+              const displayedAlerts = isExpanded ? row.alerts : (urgent.length ? urgent : lowMed.slice(0, 1));
+              const hiddenCount = row.alerts.length - displayedAlerts.length;
+
               return (
                 <div
                   key={row.code}
@@ -205,7 +211,7 @@ export default function Alerts() {
                     </div>
 
                     <div style={{ display: "flex", flexDirection: "column", gap: "8px", margin: "12px 0" }}>
-                      {row.alerts.map((a, idx) => (
+                      {displayedAlerts.map((a, idx) => (
                         <div
                           key={idx}
                           style={{
@@ -217,12 +223,33 @@ export default function Alerts() {
                             border: "1px solid var(--border)",
                           }}
                         >
-                          <div style={{ display: "flex", alignItems: "center", gap: "6px", marginBottom: "3px" }}>
+                          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: "6px", marginBottom: "4px" }}>
                             <span className="badge" style={{ fontSize: "10px", textTransform: "uppercase" }}>{humanize(a.type)}</span>
+                            <Pill value={a.priority} />
                           </div>
                           <span>{a.message}</span>
                         </div>
                       ))}
+                      {hiddenCount > 0 && (
+                        <button
+                          type="button"
+                          className="btn small"
+                          style={{ alignSelf: "flex-start", fontSize: "11px", padding: "4px 8px" }}
+                          onClick={() => toggleRow(row.code)}
+                        >
+                          + {hiddenCount} more alert{hiddenCount === 1 ? "" : "s"} (Low/Med)
+                        </button>
+                      )}
+                      {!showLowMedium && isExpanded && hiddenCount === 0 && lowMed.length > 0 && urgent.length > 0 && (
+                        <button
+                          type="button"
+                          className="btn small"
+                          style={{ alignSelf: "flex-start", fontSize: "11px", padding: "4px 8px" }}
+                          onClick={() => toggleRow(row.code)}
+                        >
+                          Collapse Low/Med
+                        </button>
+                      )}
                     </div>
                   </div>
 

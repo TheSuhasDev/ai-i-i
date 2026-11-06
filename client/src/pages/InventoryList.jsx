@@ -14,7 +14,8 @@ import ProductCell from "../components/ProductCell";
 import ProductThumb from "../components/ProductThumb";
 import ProductSelect from "../components/ProductSelect";
 import { exportCsv } from "../utils/exportCsv";
-import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
+import { Bar, BarChart, CartesianGrid, LabelList, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
+import { ChartCard, ChartTooltip, CHART_GRID_PROPS, X_AXIS_PROPS, Y_AXIS_PROPS } from "../components/charts";
 
 const INV_COLS = [
   { header: "Product code", key: "product.code" },
@@ -122,20 +123,26 @@ export default function InventoryList() {
       </div>
 
       {showChart && categoryStock.length > 0 && (
-        <section className="card" style={{ marginBottom: "16px", padding: "16px" }}>
-          <h4 style={{ margin: "0 0 12px", fontSize: "14px", color: "var(--text-muted)" }}>Stock on Hand by Category</h4>
-          <div style={{ width: "100%", height: 180 }}>
+        <ChartCard
+          title="Stock on Hand by Category"
+          subtitle="How is physical inventory distributed across categories?"
+          takeaway={`${categoryStock.length} categories; highest volume is in ${categoryStock.reduce((max, c) => (c.stock > max.stock ? c : max), categoryStock[0])?.fullName}.`}
+          className="mb-4"
+        >
+          <div style={{ width: "100%", height: 210 }}>
             <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={categoryStock} margin={{ top: 8, right: 16, bottom: 20, left: 0 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="var(--chart-grid, rgba(255,255,255,0.08))" />
-                <XAxis dataKey="category" interval={0} angle={-15} textAnchor="end" height={45} tick={{ fontSize: 11 }} />
-                <YAxis allowDecimals={false} width={40} tick={{ fontSize: 11 }} />
-                <Tooltip formatter={(value, _name, item) => [`${num(value, 0)} units`, item.payload.fullName]} />
-                <Bar dataKey="stock" fill="var(--success, #10b981)" radius={[4, 4, 0, 0]} isAnimationActive={false} />
+              <BarChart data={categoryStock} margin={{ top: 20, right: 16, bottom: 25, left: 10 }}>
+                <CartesianGrid {...CHART_GRID_PROPS} />
+                <XAxis dataKey="category" {...X_AXIS_PROPS} interval={0} angle={-15} textAnchor="end" height={45} tick={{ fontSize: 11 }} />
+                <YAxis {...Y_AXIS_PROPS} allowDecimals={false} width={45} label={{ value: "Units", angle: -90, position: "insideLeft", offset: 10, fill: "var(--muted)", fontSize: 11 }} />
+                <Tooltip content={<ChartTooltip unit=" units" />} />
+                <Bar dataKey="stock" name="Stock on Hand" fill="var(--chart-1)" radius={[4, 4, 0, 0]} isAnimationActive={false}>
+                  <LabelList dataKey="stock" position="top" formatter={(v) => num(v, 0)} fontSize={10} fill="var(--muted)" />
+                </Bar>
               </BarChart>
             </ResponsiveContainer>
           </div>
-        </section>
+        </ChartCard>
       )}
 
       {(error || actionError) && <div className="alert">{error || actionError}</div>}

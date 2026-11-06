@@ -14,7 +14,8 @@ import PageHeader from "../components/PageHeader";
 import Pill from "../components/Pill";
 import ProductCell from "../components/ProductCell";
 import { exportCsv } from "../utils/exportCsv";
-import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
+import { Bar, BarChart, CartesianGrid, Cell, LabelList, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
+import { ChartCard, ChartTooltip, CHART_GRID_PROPS, X_AXIS_PROPS, Y_AXIS_PROPS } from "../components/charts";
 
 const PO_COLS = [
   { header: "PO Number", key: "poNumber", format: (v, row) => normalizePoNumber(row) },
@@ -130,20 +131,40 @@ export default function PurchaseOrderList() {
       </div>
 
       {showChart && statusDistribution.length > 0 && (
-        <section className="card" style={{ marginBottom: "16px", padding: "16px" }}>
-          <h4 style={{ margin: "0 0 12px", fontSize: "14px", color: "var(--text-muted)" }}>Purchase Orders by Status</h4>
-          <div style={{ width: "100%", height: 160 }}>
+        <ChartCard
+          title="Purchase Orders by Status"
+          subtitle="How are supplier orders distributed across fulfillment stages?"
+          takeaway={`${data.length} total orders; ${openOrders} currently open (${inTransitOrders} in transit).`}
+          className="mb-4"
+        >
+          <div style={{ width: "100%", height: 190 }}>
             <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={statusDistribution} margin={{ top: 8, right: 16, bottom: 10, left: 0 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="var(--chart-grid, rgba(255,255,255,0.08))" />
-                <XAxis dataKey="status" />
-                <YAxis allowDecimals={false} width={30} />
-                <Tooltip formatter={(value) => [`${value} orders`, "Count"]} />
-                <Bar dataKey="count" fill="var(--brand, #3b82f6)" radius={[4, 4, 0, 0]} isAnimationActive={false} />
+              <BarChart data={statusDistribution} margin={{ top: 20, right: 16, bottom: 10, left: 0 }}>
+                <CartesianGrid {...CHART_GRID_PROPS} />
+                <XAxis dataKey="status" {...X_AXIS_PROPS} />
+                <YAxis {...Y_AXIS_PROPS} allowDecimals={false} width={35} label={{ value: "Orders", angle: -90, position: "insideLeft", offset: 10, fill: "var(--muted)", fontSize: 11 }} />
+                <Tooltip content={<ChartTooltip unit=" orders" />} />
+                <Bar dataKey="count" name="Orders" radius={[4, 4, 0, 0]} isAnimationActive={false}>
+                  <LabelList dataKey="count" position="top" fontSize={10} fill="var(--muted)" />
+                  {statusDistribution.map((entry) => (
+                    <Cell
+                      key={entry.status}
+                      fill={
+                        entry.status === "Delivered"
+                          ? "var(--success)"
+                          : entry.status === "In Transit"
+                          ? "var(--chart-1)"
+                          : entry.status === "Cancelled"
+                          ? "var(--danger)"
+                          : "var(--muted)"
+                      }
+                    />
+                  ))}
+                </Bar>
               </BarChart>
             </ResponsiveContainer>
           </div>
-        </section>
+        </ChartCard>
       )}
 
       {(error || actionError) && <div className="alert">{error || actionError}</div>}

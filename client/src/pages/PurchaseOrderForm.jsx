@@ -41,7 +41,32 @@ export default function PurchaseOrderForm() {
         const q = new URLSearchParams(prefill);
         if (!id && q.get("productCode")) {
           const prod = p.data.data.find((x) => x.code === q.get("productCode"));
-          const sup = s.data.data.find((x) => x.code === q.get("supplierCode"));
+          let sup = s.data.data.find((x) => x.code === q.get("supplierCode"));
+
+          // If supplier in URL is High Risk, automatically upgrade to the product's most reliable supplier
+          const riskMap = Object.fromEntries((risk.data.data ?? []).map((r) => [r.supplier_id, r]));
+          const urlRisk = sup ? riskMap[sup.code] : null;
+
+          if (!sup || urlRisk?.risk_level === "High") {
+            if (prod?.suppliers?.length) {
+              const prodSuppliers = prod.suppliers
+                .map((supRef) => {
+                  const sObj = typeof supRef === "object" ? supRef : s.data.data.find((x) => x._id === supRef);
+                  return sObj ? { ...sObj, score: riskMap[sObj.code]?.reliability_score ?? 0, riskLevel: riskMap[sObj.code]?.risk_level } : null;
+                })
+                .filter(Boolean);
+
+              if (prodSuppliers.length) {
+                // Sort by highest reliability score
+                prodSuppliers.sort((a, b) => b.score - a.score);
+                // If current sup was high risk and a better supplier exists for this product, use the better one
+                if (!sup || prodSuppliers[0].score > (urlRisk?.reliability_score ?? 0)) {
+                  sup = prodSuppliers[0];
+                }
+              }
+            }
+          }
+
           if (prod) {
             setForm((f) => ({
               ...f,
@@ -82,7 +107,24 @@ export default function PurchaseOrderForm() {
     }
   }, [id, prefill]);
 
-  const set = (key) => (e) => setForm((f) => ({ ...f, [key]: e.target.value }));
+  const set = (key) => (e) => {
+    const val = e.target.value;
+    setForm((f) => {
+      const next = { ...f, [key]: val };
+      // When all items have been received (qtyReceived >= qtyOrdered > 0), automatically mark as Delivered
+      if (key === "qtyReceived") {
+        const received = Number(val);
+        const ordered = Number(f.qtyOrdered);
+        if (ordered > 0 && received >= ordered) {
+          next.status = "Delivered";
+          if (!next.actualDeliveryDate) {
+            next.actualDeliveryDate = todayInput();
+          }
+        }
+      }
+      return next;
+    });
+  };
 
   // Entering an actual delivery date marks the order as Delivered.
   const setActual = (e) => {
@@ -159,30 +201,51 @@ export default function PurchaseOrderForm() {
   }, [suppliers, supplierRisk]);
 
   const selectedRisk = form.supplier ? riskBySupId[form.supplier] : null;
-  const isHighRisk = selectedRisk?.risk_level === "High";
 
-  // Best alternative: highest reliability_score among other suppliers that have risk data
+  // Best alternative: highest reliability_score among OTHER suppliers who SUPPLY THIS PRODUCT
   const bestAlt = useMemo(() => {
-    if (!isHighRisk) return null;
-    const others = Object.entries(riskBySupId)
-      .filter(([sid]) => sid !== form.supplier)
+    const currentProd = products.find((x) => x._id === form.product);
+    const prodSupplierIds = new Set(
+      (currentProd?.suppliers || []).map((sRef) => (typeof sRef === "object" ? sRef?._id : sRef))
+    );
+
+    // Prefer alternate suppliers that actually supply this product
+    let candidates = Object.entries(riskBySupId)
+      .filter(([sid]) => sid !== form.supplier && (prodSupplierIds.size === 0 || prodSupplierIds.has(sid)))
       .map(([, r]) => r)
       .filter((r) => r.reliability_score != null);
-    if (!others.length) return null;
-    return others.reduce((a, b) => (b.reliability_score > a.reliability_score ? b : a));
-  }, [isHighRisk, riskBySupId, form.supplier]);
+
+    // Fallback to any general supplier if product has no other linked supplier
+    if (!candidates.length) {
+      candidates = Object.entries(riskBySupId)
+        .filter(([sid]) => sid !== form.supplier)
+        .map(([, r]) => r)
+        .filter((r) => r.reliability_score != null);
+    }
+
+    if (!candidates.length) return null;
+    return candidates.reduce((a, b) => (b.reliability_score > a.reliability_score ? b : a));
+  }, [riskBySupId, form.supplier, form.product, products]);
+
+  // Show warning ONLY if the selected supplier is genuinely riskier than an available alternative
+  const isWorseThanAlternative = Boolean(
+    selectedRisk &&
+    bestAlt &&
+    (bestAlt.reliability_score ?? 0) > (selectedRisk.reliability_score ?? 0) &&
+    selectedRisk.risk_level === "High"
+  );
 
   return (
     <div>
       <PageHeader title={id ? "Edit purchase order" : "Add purchase order"} subtitle="Enter the supplier, product, quantity, and expected delivery details." />
       {error && <div className="alert">{error}</div>}
-      {isHighRisk && (
+      {isWorseThanAlternative && (
         <div className="alert warning supplier-risk-banner">
-          <strong>&#9888; High-risk supplier</strong> — reliability score{" "}
+          <strong>&#9888; Sub-optimal supplier selected</strong> — {selectedRisk._supObj?.code} {selectedRisk._supObj?.name} has reliability score{" "}
           <strong>{selectedRisk.reliability_score != null ? selectedRisk.reliability_score.toFixed(2) : "—"}</strong>.
           {bestAlt && (
             <span className="supplier-risk-alt">
-              {" "}Best alternative: <strong>{bestAlt._supObj.code} {bestAlt._supObj.name}</strong> (reliability{" "}
+              {" "}Recommended alternative: <strong>{bestAlt._supObj.code} {bestAlt._supObj.name}</strong> (higher reliability{" "}
               {bestAlt.reliability_score.toFixed(2)}).
               <button
                 type="button"

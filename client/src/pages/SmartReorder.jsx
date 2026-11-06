@@ -10,8 +10,9 @@ import PageHeader from "../components/PageHeader";
 import ProductCell from "../components/ProductCell";
 import MetricCard from "../components/MetricCard";
 import { exportCsv } from "../utils/exportCsv";
-import { Bar, BarChart, CartesianGrid, Legend, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
+import { Bar, BarChart, CartesianGrid, LabelList, Legend, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { AnalysisButton, AnalysisIdle, AnalysisLoader, AnalysisReveal } from "../components/analysis";
+import { ChartCard, ChartTooltip, CHART_GRID_PROPS, X_AXIS_PROPS, Y_AXIS_PROPS } from "../components/charts";
 
 const REORDER_COLS = [
   { header: "Product code", key: "product_id" },
@@ -131,23 +132,34 @@ export default function SmartReorder() {
       </div>
 
       {showChart && reorderComparisonData.length > 0 && (
-        <section className="card" style={{ marginBottom: "16px", padding: "16px" }}>
-          <h4 style={{ margin: "0 0 12px", fontSize: "14px", color: "var(--text-muted)" }}>Stock Position vs Reorder Point vs Recommended Order Qty (Top Items)</h4>
-          <div style={{ width: "100%", height: 210 }}>
+        <ChartCard
+          title="Stock Position vs Reorder Point vs Recommended Order"
+          subtitle="Comparing inventory against replenishment trigger levels for top items"
+          jargon={["Reorder Point"]}
+          takeaway={`${rows.length} products evaluated; ordering recommended quantities prevents impending stockouts.`}
+          className="mb-4"
+        >
+          <div style={{ width: "100%", height: 230 }}>
             <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={reorderComparisonData} margin={{ top: 8, right: 16, bottom: 20, left: 10 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="var(--chart-grid, rgba(255,255,255,0.08))" />
-                <XAxis dataKey="name" interval={0} angle={-15} textAnchor="end" height={45} tick={{ fontSize: 11 }} />
-                <YAxis width={40} tick={{ fontSize: 11 }} />
-                <Tooltip formatter={(value, name, item) => [`${value} units`, name === "stock" ? "Stock on Hand" : name === "reorderPoint" ? "Reorder Point" : "Recommended Order", item.payload.fullName]} />
-                <Legend />
-                <Bar dataKey="stock" name="Stock" fill="var(--muted, #64748b)" radius={[3, 3, 0, 0]} />
-                <Bar dataKey="reorderPoint" name="Reorder Point" fill="var(--warning, #f59e0b)" radius={[3, 3, 0, 0]} />
-                <Bar dataKey="orderQty" name="Order Qty" fill="var(--success, #10b981)" radius={[3, 3, 0, 0]} />
+              <BarChart data={reorderComparisonData} margin={{ top: 20, right: 16, bottom: 25, left: 10 }}>
+                <CartesianGrid {...CHART_GRID_PROPS} />
+                <XAxis dataKey="name" {...X_AXIS_PROPS} interval={0} angle={-15} textAnchor="end" height={45} tick={{ fontSize: 11 }} />
+                <YAxis {...Y_AXIS_PROPS} width={45} label={{ value: "Units", angle: -90, position: "insideLeft", offset: 10, fill: "var(--muted)", fontSize: 11 }} />
+                <Tooltip content={<ChartTooltip unit=" units" />} />
+                <Legend verticalAlign="top" wrapperStyle={{ paddingBottom: 8, fontSize: 12 }} />
+                <Bar dataKey="stock" name="Stock on Hand" fill="var(--chart-1)" radius={[3, 3, 0, 0]} isAnimationActive={false}>
+                  <LabelList dataKey="stock" position="top" fontSize={10} fill="var(--muted)" />
+                </Bar>
+                <Bar dataKey="reorderPoint" name="Reorder Point" fill="var(--warning)" radius={[3, 3, 0, 0]} isAnimationActive={false}>
+                  <LabelList dataKey="reorderPoint" position="top" fontSize={10} fill="var(--muted)" />
+                </Bar>
+                <Bar dataKey="orderQty" name="Recommended Order" fill="var(--success)" radius={[3, 3, 0, 0]} isAnimationActive={false}>
+                  <LabelList dataKey="orderQty" position="top" fontSize={10} fill="var(--muted)" />
+                </Bar>
               </BarChart>
             </ResponsiveContainer>
           </div>
-        </section>
+        </ChartCard>
       )}
 
       {error && <div className="alert">{error}</div>}

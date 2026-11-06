@@ -5,6 +5,8 @@ import {
   BarChart,
   CartesianGrid,
   Cell,
+  LabelList,
+  ReferenceLine,
   ResponsiveContainer,
   Tooltip,
   XAxis,
@@ -20,6 +22,7 @@ import { humanize, num, pct } from "../utils/format";
 import PageHeader from "../components/PageHeader";
 import { exportCsv } from "../utils/exportCsv";
 import { AnalysisButton, AnalysisIdle, AnalysisLoader, AnalysisReveal } from "../components/analysis";
+import { ChartCard, ChartTooltip, CHART_GRID_PROPS, X_AXIS_PROPS, Y_AXIS_PROPS } from "../components/charts";
 
 const fetchRisk = () => insightService.supplierRisk();
 const fetchSuppliers = () => supplierService.list({ limit: 100, sort: "code" });
@@ -132,16 +135,39 @@ export default function SupplierRisk() {
           </div>
 
           {rows.length > 0 && (
-            <section className="card" style={{ marginBottom: "18px" }}>
-              <h3>On-Time Delivery Rate by Supplier (%)</h3>
-              <div style={{ width: "100%", height: 220, marginTop: "12px" }}>
+            <ChartCard
+              title="On-Time Delivery Rate by Supplier"
+              subtitle="Which suppliers consistently deliver purchase orders before the promised ETA?"
+              takeaway={
+                highRiskCount > 0
+                  ? `${highRiskCount} supplier${highRiskCount > 1 ? "s" : ""} fall below the 80% on-time target. Click any bar to inspect delivery delays.`
+                  : "All monitored suppliers meet or exceed the 80% on-time target."
+              }
+              className="mb-4"
+            >
+              <div style={{ width: "100%", height: 240 }}>
                 <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={chartData} margin={{ top: 10, right: 20, left: -10, bottom: 25 }}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="var(--chart-grid)" />
-                    <XAxis dataKey="name" interval={0} angle={-15} textAnchor="end" height={45} tick={{ fontSize: 11 }} />
-                    <YAxis domain={[0, 100]} tick={{ fontSize: 11 }} />
-                    <Tooltip formatter={(value) => [`${value}%`, "On-Time Rate"]} />
-                    <Bar dataKey="onTimePct" name="On-Time Rate %" radius={[4, 4, 0, 0]} isAnimationActive={false}>
+                  <BarChart
+                    data={chartData}
+                    margin={{ top: 20, right: 20, left: 0, bottom: 25 }}
+                    onClick={(entry) => {
+                      if (entry?.activePayload?.[0]?.payload) {
+                        const targetRow = rows.find((r) => `${r.supplier_id} ${names[r.supplier_id] || ""}` === entry.activePayload[0].payload.name);
+                        if (targetRow) {
+                          const s = supMap[targetRow.supplier_id];
+                          navigate(`/supplier-risk/${s?._id || targetRow.supplier_id}/deliveries`);
+                        }
+                      }
+                    }}
+                    style={{ cursor: "pointer" }}
+                  >
+                    <CartesianGrid {...CHART_GRID_PROPS} />
+                    <XAxis dataKey="name" {...X_AXIS_PROPS} interval={0} angle={-15} textAnchor="end" height={45} tick={{ fontSize: 11 }} />
+                    <YAxis {...Y_AXIS_PROPS} unit="%" domain={[0, 100]} width={45} />
+                    <Tooltip content={<ChartTooltip unit="%" />} />
+                    <ReferenceLine y={80} stroke="var(--muted)" strokeDasharray="4 4" label={{ value: "80% Target", fill: "var(--muted)", position: "insideTopRight", fontSize: 11 }} />
+                    <Bar dataKey="onTimePct" name="On-Time Rate" radius={[4, 4, 0, 0]} isAnimationActive={false}>
+                      <LabelList dataKey="onTimePct" position="top" formatter={(v) => `${v}%`} fontSize={10} fill="var(--text)" />
                       {chartData.map((entry) => (
                         <Cell
                           key={entry.name}
@@ -152,7 +178,7 @@ export default function SupplierRisk() {
                   </BarChart>
                 </ResponsiveContainer>
               </div>
-            </section>
+            </ChartCard>
           )}
 
           <div className="toolbar">

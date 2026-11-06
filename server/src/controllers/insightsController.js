@@ -1,4 +1,5 @@
 import Product from "../models/Product.js";
+import Supplier from "../models/Supplier.js";
 import { syncInTransit } from "../models/PurchaseOrder.js";
 import Inventory from "../models/Inventory.js";
 import Insight from "../models/Insight.js";
@@ -59,23 +60,59 @@ export async function computeAndStore(product) {
 
 // GET /api/insights/:code  -> full combined result for one product (recomputed and stored)
 export async function getInsight(req, res) {
-  const product = await Product.findOne({ code: req.params.code.toUpperCase() });
+  const product = await Product.findOne({ code: req.params.code.toUpperCase() }).populate("suppliers");
   if (!product) throw new AppError(`Unknown product ${req.params.code}`, 404);
   const doc = await computeAndStore(product);
   const maxSale = await Sale.findOne().sort({ date: -1 }).select("date").lean();
   const liveDataDate = maxSale?.date ? maxSale.date.toISOString().slice(0, 10) : null;
+  const liveDataAgeDays = maxSale?.date
+    ? Math.max(0, Math.floor((new Date(new Date().toISOString().slice(0, 10)) - new Date(liveDataDate)) / 86400000))
+    : null;
+
+  const suppliers = await Supplier.find().select("code name").lean();
+  const supMap = Object.fromEntries(suppliers.map((s) => [s.code, s.name]));
+
+  const primarySupplierId = doc.data?.supplier?.id || doc.data?.reorder?.supplier_id;
+  const primarySupplierName = supMap[primarySupplierId] || primarySupplierId;
+
+  const altSupplier = doc.data?.reorder?.alternate_supplier;
+  const altSupplierId = altSupplier?.supplier_id;
+  const altSupplierName = altSupplierId ? (supMap[altSupplierId] || altSupplierId) : null;
+
   res.json({
     success: true,
     dataDate: liveDataDate,
     dataAsOf: liveDataDate,
     data: {
       ...doc.data,
+      category: product.category,
+      price: product.price,
+      cost: product.cost,
+      lead_time_days: product.leadTimeDays,
+      moq: 10,
+      imageUrl: product.imageUrl,
       computedAt: doc.computedAt,
       dataAsOf: liveDataDate,
       data_as_of: liveDataDate,
+      supplier: {
+        ...(doc.data?.supplier || {}),
+        id: primarySupplierId,
+        name: primarySupplierName,
+      },
+      reorder: {
+        ...(doc.data?.reorder || {}),
+        supplier_id: primarySupplierId,
+        supplier_name: primarySupplierName,
+        moq: 10,
+        alternate_supplier: altSupplier ? {
+          ...altSupplier,
+          supplier_name: altSupplierName,
+        } : null,
+      },
       inputs: {
         ...(doc.data?.inputs || {}),
         data_as_of: liveDataDate,
+        data_age_days: liveDataAgeDays,
       },
     },
   });
@@ -90,7 +127,7 @@ export async function listInsights(req, res) {
   let query = Insight.find(filter);
   if (req.query.full !== "1") {
     query = query.select(
-      "productCode asOf dataAsOf priority healthScore healthStatus riskPct orderQty daysOfCover marginDays computedAt data.name data.as_of data.data_as_of data.inputs.data_as_of data.inputs.data_age_days data.classification data.trend.pattern data.trend.trend data.trend.yoy_change_pct data.trend.monthly_index data.trend.weekly_series"
+      "productCode asOf dataAsOf priority healthScore healthStatus riskPct orderQty daysOfCover marginDays computedAt data.name data.as_of data.data_as_of data.inputs.data_as_of data.inputs.data_age_days data.classification data.reorder.supplier_id data.reorder.supplier_risk_level data.reorder.alternate_supplier data.reorder.order_qty data.trend.pattern data.trend.trend data.trend.yoy_change_pct data.trend.monthly_index data.trend.weekly_series"
     );
   }
   const [docs, maxSale] = await Promise.all([

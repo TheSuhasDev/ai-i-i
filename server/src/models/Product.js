@@ -1,4 +1,5 @@
 import mongoose from "mongoose";
+import "./Supplier.js";
 
 const productSchema = new mongoose.Schema(
   {
