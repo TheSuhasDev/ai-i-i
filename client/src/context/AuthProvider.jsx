@@ -20,16 +20,29 @@ export default function AuthProvider({ children }) {
     setUser(data.user);
   };
 
-  const logout = () => {
-    localStorage.removeItem("token");
-    localStorage.removeItem("user");
-    setUser(null);
+  const logout = async () => {
+    try {
+      await authService.logout();
+    } catch {
+      // Ignore network errors on logout
+    } finally {
+      localStorage.removeItem("token");
+      localStorage.removeItem("user");
+      setUser(null);
+    }
+  };
+
+  const updateUser = (updated) => {
+    const next = { ...user, ...updated };
+    localStorage.setItem("user", JSON.stringify(next));
+    setUser(next);
   };
 
   const value = {
     user,
     login,
     logout,
+    updateUser,
     canWrite: ["admin", "manager"].includes(user?.role),
     isAdmin: user?.role === "admin",
   };

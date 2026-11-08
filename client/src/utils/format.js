@@ -7,7 +7,7 @@ export const CATEGORIES = [
   "Gaming & Lifestyle",
 ];
 
-export const PO_STATUSES = ["Pending", "In Transit", "Delivered", "Cancelled"];
+export const PO_STATUSES = ["Pending", "In Transit", "Partially Delivered", "Delivered", "Cancelled"];
 
 export const money = (n) =>
   n == null ? "-" : new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR", maximumFractionDigits: 0 }).format(n);
@@ -157,4 +157,18 @@ export const normalizePoNumber = (po) => {
     }
   }
   return raw || "-";
+};
+
+export const formatMarginChip = (val) => {
+  if (val == null || Number.isNaN(Number(val))) return "-";
+  const num = Number(val);
+  const fixed = Math.abs(num).toFixed(1);
+  return `${num < 0 ? "-" : "+"}${fixed}d`;
+};
+
+export const formatMarginSigned = (val) => {
+  if (val == null || Number.isNaN(Number(val))) return "-";
+  const num = Number(val);
+  const fixed = Math.abs(num).toFixed(1);
+  return `${num < 0 ? "-" : "+"}${fixed}`;
 };

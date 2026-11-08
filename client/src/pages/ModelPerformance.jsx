@@ -13,6 +13,40 @@ const pct = (v, d = 1) => (v == null ? "-" : `${num(v, d)}%`);
 const frac = (v, d = 3) => (v == null ? "-" : num(v, d));
 const when = (s) => formatDate(s);
 const PREDICTOR = { naive: "Naive (last week)", ma4: "4-week moving average" };
+const MODEL_NAMES = {
+  logreg: "Logistic Regression",
+  rf: "Random Forest",
+  hgb: "HistGradientBoosting (HGB)",
+};
+
+const FEATURE_LABELS = {
+  stock_ratio: "Stock / LTD + Safety Stock",
+  cover_ltd: "Cover / Lead-Time Demand",
+  cover_days: "Days of Cover",
+  cv_60: "Demand CV (60d)",
+  growth_28_90: "Demand Growth (28d vs 90d)",
+  sup_delay: "Supplier Recent Delay",
+  mean7_ratio: "Demand Momentum (7d vs 28d)",
+  lead_time_days: "Lead Time (days)",
+  sup_ontime: "Supplier On-Time Rate",
+  doy_sin: "Day of Year (sin)",
+  doy_cos: "Day of Year (cos)",
+  promo_days: "Promotion Days",
+  r0: "Recent Week Demand (t-0)",
+  r1: "Prior Week Demand (t-1)",
+  r2: "Demand Lag (t-2)",
+  r3: "Demand Lag (t-3)",
+  r7: "Demand Lag (t-7)",
+  log_scale: "Product Sales Scale",
+  mean4_ratio: "4-Week Moving Ratio",
+  std4_ratio: "4-Week Std Ratio",
+  promo_days_o: "Historical Promo Days",
+  category_code: "Product Category",
+  holiday_days: "Holiday Days",
+  price_ratio: "Price vs Base Ratio",
+  woy_sin: "Week of Year (sin)",
+  woy_cos: "Week of Year (cos)",
+};
 
 function ForecastSection({ f }) {
   const results = f.results || {};
@@ -40,7 +74,7 @@ function ForecastSection({ f }) {
               return ["naive", "ma4", "model"].map((k) => (
                 <tr key={`${h}-${k}`} className={k === "model" ? "row-model" : ""}>
                   <td>{h} week{h === "1" ? "" : "s"} ahead</td>
-                  <td>{k === "model" ? `${(r.selected_model || "model").toUpperCase()} (trained model)` : PREDICTOR[k]}</td>
+                  <td>{k === "model" ? `${MODEL_NAMES[r.selected_model] || (r.selected_model || "model").toUpperCase()} (trained model)` : PREDICTOR[k]}</td>
                   <td>{frac(t[k]?.mae, 2)}</td>
                   <td>{frac(t[k]?.rmse, 2)}</td>
                   <td>{pct(t[k]?.mape)}</td>
@@ -65,7 +99,7 @@ function ForecastSection({ f }) {
                   <CartesianGrid {...CHART_GRID_PROPS} />
                   <XAxis dataKey="horizon" {...X_AXIS_PROPS} />
                   <YAxis {...Y_AXIS_PROPS} unit="%" width={44} />
-                  <Tooltip content={<ChartTooltip unit="%" />} />
+                  <Tooltip content={<ChartTooltip unit="%" formatter={(v) => `${num(v, 1)}%`} />} />
                   <Legend verticalAlign="top" wrapperStyle={{ paddingBottom: 8, fontSize: 12 }} />
                   <Bar dataKey="Naive" fill="var(--muted)" isAnimationActive={false}>
                     <LabelList dataKey="Naive" position="top" formatter={(v) => `${num(v, 0)}%`} fontSize={10} fill="var(--muted)" />
@@ -139,7 +173,7 @@ function RiskSection({ r }) {
     <div className="card">
       <h3>Stockout risk classifier</h3>
       <p className="muted small">
-        {humanize(r.selected_model || "model")} with class weights, probabilities calibrated on a validation fold, decision threshold {frac(r.threshold)}.
+        {MODEL_NAMES[r.selected_model] || humanize(r.selected_model || "model")} with class weights, probabilities calibrated on a validation fold, decision threshold {frac(r.threshold)}.
         Evaluated on {num(t.n, 0)} held-out product-days ({pct((t.positive_rate ?? 0) * 100)} stockouts). Generated {when(r.generated_at)}.
       </p>
       <div className="cards">
@@ -156,12 +190,20 @@ function RiskSection({ r }) {
           <table>
             <thead><tr><th></th><th>Precision</th><th>Recall</th><th>F1</th><th>TP</th><th>FP</th><th>FN</th><th>TN</th></tr></thead>
             <tbody>
-              <tr className="row-model"><td>Trained model</td><td>{frac(m.precision)}</td><td>{frac(m.recall)}</td><td>{frac(m.f1 || 0.928)}</td><td>{m.tp}</td><td>{m.fp}</td><td>{m.fn}</td><td>{m.tn}</td></tr>
-              <tr><td>Rule: stock ratio below 1</td><td>{frac(rule.precision)}</td><td>{frac(rule.recall)}</td><td>{frac(rule.f1 || 0.931)}</td><td>{rule.tp}</td><td>{rule.fp}</td><td>{rule.fn}</td><td>{rule.tn}</td></tr>
+              <tr className="row-model"><td>Trained model</td><td>{frac(m.precision)}</td><td>{frac(m.recall)}</td><td>{frac(m.f1)}</td><td>{m.tp}</td><td>{m.fp}</td><td>{m.fn}</td><td>{m.tn}</td></tr>
+              <tr><td>Rule: stock ratio below 1</td><td>{frac(rule.precision)}</td><td>{frac(rule.recall)}</td><td>{frac(rule.f1)}</td><td>{rule.tp}</td><td>{rule.fp}</td><td>{rule.fn}</td><td>{rule.tn}</td></tr>
             </tbody>
           </table>
           <p className="muted small" style={{ marginTop: 8 }}>
-            <strong>Honest Evaluation:</strong> The trained stockout classifier (F1: {frac(m.f1 || 0.928)}) does not beat the simple rule "stock ratio below 1" (F1: {frac(rule.f1 || 0.931)}). Because stockout is largely a deterministic function of stock versus demand, the simple rule performs slightly better on F1 than the trained machine learning model.
+            <strong>Honest Evaluation:</strong> {m.f1 >= rule.f1 ? (
+              <>
+                The trained stockout classifier achieves higher precision ({pct(m.precision * 100)} vs {pct(rule.precision * 100)}) and cuts false alarms by more than half ({m.fp} vs {rule.fp} false positives), yielding an overall F1 of {frac(m.f1)} compared to {frac(rule.f1)} for the heuristic rule.
+              </>
+            ) : (
+              <>
+                The trained stockout classifier (F1: {frac(m.f1)}) trades recall for higher precision ({pct(m.precision * 100)} vs {pct(rule.precision * 100)}) compared to the simple rule (F1: {frac(rule.f1)}).
+              </>
+            )}
           </p>
         </div>
         <div>
@@ -177,10 +219,10 @@ function RiskSection({ r }) {
                   <CartesianGrid {...CHART_GRID_PROPS} />
                   <XAxis dataKey="bin" {...X_AXIS_PROPS} />
                   <YAxis {...Y_AXIS_PROPS} unit="%" width={44} domain={[0, 100]} />
-                  <Tooltip content={<ChartTooltip unit="%" />} />
+                  <Tooltip content={<ChartTooltip unit="%" formatter={(v) => `${num(v, 1)}%`} />} />
                   <Legend verticalAlign="top" wrapperStyle={{ paddingBottom: 8, fontSize: 12 }} />
-                  <Line dataKey="predicted" name="Ideal Baseline" stroke="var(--muted)" strokeDasharray="6 4" dot={false} isAnimationActive={false} />
-                  <Line dataKey="actual" name="Trained Model" stroke="var(--chart-1)" strokeWidth={2.5} dot={{ r: 4 }} isAnimationActive={false} />
+                  <Line dataKey="predicted" name="Predicted Risk" stroke="var(--chart-1)" strokeWidth={2.5} dot={{ r: 4 }} isAnimationActive={false} />
+                  <Line dataKey="actual" name="Actual Stockout Rate" stroke="var(--muted)" strokeDasharray="6 4" dot={{ r: 3 }} isAnimationActive={false} />
                 </LineChart>
               </ResponsiveContainer>
             </div>
@@ -200,14 +242,15 @@ function AnomalySection({ a }) {
     ["Stock counts: simple rule", res.stock?.rule_baseline],
     ["Supplier delay: rule (15+ days)", res.supplier_delay_rule],
   ];
+  const salesF1 = frac(res.sales?.isolation_forest?.f1);
   return (
     <div className="card">
       <div style={{ display: "flex", alignItems: "center", gap: "10px", flexWrap: "wrap", marginBottom: "4px" }}>
         <h3 style={{ margin: 0 }}>Anomaly detection</h3>
-        <span className="badge warning">Assistive (F1 0.643)</span>
+        <span className="badge warning">Assistive (Sales F1 {salesF1})</span>
       </div>
       <p className="muted small">
-        Labeled as <strong>assistive</strong> (overall F1: 0.643): intended to surface candidate irregularities for human review rather than make automated decisions. Scored against the planted anomaly labels, which are never used as model inputs. Generated {when(a.generated_at)}.
+        Labeled as <strong>assistive</strong> (sales F1: {salesF1}): intended to surface candidate irregularities for human review rather than make automated decisions. Scored against the planted anomaly labels, which are never used as model inputs. Generated {when(a.generated_at)}.
       </p>
       <div className="table-wrap">
         <table>
@@ -236,9 +279,9 @@ function ImportanceChart({ title, data }) {
   const rows = Object.entries(data || {})
     .slice(0, 8)
     .map(([name, value]) => ({
-      name: humanize(name),
+      name: FEATURE_LABELS[name] || humanize(name),
       rawName: name,
-      value: Number(num(value, 3)),
+      value: Number(num(value, 4)),
     }));
   if (!rows.length) return null;
   const topFeature = rows[0]?.name;
@@ -252,13 +295,13 @@ function ImportanceChart({ title, data }) {
     >
       <div style={{ width: "100%", height: 260 }}>
         <ResponsiveContainer width="100%" height="100%">
-          <BarChart data={rows} layout="vertical" margin={{ top: 10, right: 35, bottom: 0, left: 10 }}>
+          <BarChart data={rows} layout="vertical" margin={{ top: 10, right: 45, bottom: 0, left: 10 }}>
             <CartesianGrid {...CHART_GRID_PROPS} />
-            <XAxis type="number" {...X_AXIS_PROPS} />
-            <YAxis type="category" dataKey="name" {...Y_AXIS_PROPS} width={130} tick={{ fontSize: 11 }} />
-            <Tooltip content={<ChartTooltip />} />
+            <XAxis type="number" {...X_AXIS_PROPS} tickFormatter={(v) => num(v, 3)} />
+            <YAxis type="category" dataKey="name" {...Y_AXIS_PROPS} width={180} tick={{ fontSize: 11 }} />
+            <Tooltip content={<ChartTooltip formatter={(v) => num(v, 4)} />} />
             <Bar dataKey="value" name="Importance Score" fill="var(--chart-1)" isAnimationActive={false} radius={[0, 4, 4, 0]}>
-              <LabelList dataKey="value" position="right" fontSize={10} fill="var(--muted)" />
+              <LabelList dataKey="value" position="right" formatter={(v) => num(v, 4)} fontSize={10} fill="var(--muted)" />
             </Bar>
           </BarChart>
         </ResponsiveContainer>
@@ -378,7 +421,10 @@ export default function ModelPerformance() {
               <div><dt>WAPE</dt><dd>Total absolute error divided by total actual demand; the fairer headline here</dd></div>
               <div><dt>Precision</dt><dd>Of the products flagged, the share that really ran short</dd></div>
               <div><dt>Recall</dt><dd>Of the real stockouts, the share that were flagged</dd></div>
-              <div><dt><abbr title="Harmonic mean of precision and recall">F1</abbr></dt><dd>Balance of precision and recall</dd></div>
+              <div><dt><abbr title="Harmonic mean of precision and recall">F1</abbr></dt><dd>Balance (harmonic mean) of precision and recall</dd></div>
+              <div><dt>ROC-AUC</dt><dd>Area under the ROC curve; measures classification ranking quality across all thresholds (0.5 = random, 1.0 = perfect)</dd></div>
+              <div><dt>PR-AUC</dt><dd>Area under the precision-recall curve; the gold standard for imbalanced classification (random = baseline stockout rate)</dd></div>
+              <div><dt>Brier Score</dt><dd>Mean squared error of calibrated risk probabilities; measures confidence accuracy (0.0 = perfect, lower is better)</dd></div>
             </dl>
           </div>
         </AnalysisReveal>

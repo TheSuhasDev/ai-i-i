@@ -1,7 +1,7 @@
 @echo off
-title AI Inventory Intelligence Launcher
+title Replenix Launcher
 echo ============================================================
-echo  AI Inventory Intelligence - Local Launcher
+echo  Replenix - Local Launcher
 echo ============================================================
 echo.
 

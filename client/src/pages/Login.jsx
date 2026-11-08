@@ -9,6 +9,7 @@ import {
 } from "lucide-react";
 import useAuth from "../context/useAuth";
 import { errorMessage } from "../services/api";
+import Logo from "../components/Logo";
 
 const FEATURES = [
   {
@@ -72,13 +73,11 @@ export default function Login() {
         {/* Main showcase content - vertically centered */}
         <div className="max-w-xl mx-auto w-full space-y-6 z-10 my-auto">
           {/* Header Brand */}
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[var(--accent)] to-[var(--accent-strong)] flex items-center justify-center shadow-lg shadow-[var(--accent)]/20 text-[var(--primary-contrast)]">
-              <Boxes className="w-5 h-5" />
-            </div>
-            <span className="font-extrabold tracking-tight text-xl text-[var(--text)] font-heading">
-              AI Inventory Intelligence
-            </span>
+          <div className="space-y-1">
+            <Logo height={44} alt="Replenix" />
+            <p className="text-xs font-semibold tracking-wider uppercase text-[var(--accent)] pl-0.5">
+              Predict. Prevent. Replenish.
+            </p>
           </div>
 
           {/* Headline & Subtext */}
@@ -165,13 +164,11 @@ export default function Login() {
       <div className="flex flex-col justify-center items-center h-full min-h-screen lg:min-h-0 p-6 sm:p-8 lg:px-12 w-full relative">
         <div className="w-full max-w-md mx-auto">
           {/* Mobile-only branding header */}
-          <div className="lg:hidden flex items-center justify-center gap-3 mb-6">
-            <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-[var(--accent)] to-[var(--accent-strong)] flex items-center justify-center shadow-lg shadow-[var(--accent)]/20 text-[var(--primary-contrast)]">
-              <Boxes className="w-5 h-5" />
-            </div>
-            <span className="font-extrabold tracking-tight text-lg text-[var(--text)] font-heading">
-              AI Inventory Intelligence
-            </span>
+          <div className="lg:hidden flex flex-col items-center justify-center mb-6 text-center space-y-1">
+            <Logo height={38} alt="Replenix" />
+            <p className="text-[11px] font-semibold tracking-wider uppercase text-[var(--accent)]">
+              Predict. Prevent. Replenish.
+            </p>
           </div>
 
           <form className="card login-card w-full shadow-2xl shadow-black/40 border border-[var(--border-strong)]" onSubmit={submit}>
@@ -277,7 +274,7 @@ export default function Login() {
 
           {/* Mobile teaser features footer */}
           <div className="lg:hidden mt-8 pt-6 border-t border-[var(--border)] text-center text-xs text-[var(--muted)] space-y-2">
-            <p className="font-medium text-[var(--text)]">AI-powered supply chain &amp; inventory intelligence</p>
+            <p className="font-medium text-[var(--text)]">Replenix &bull; Predict. Prevent. Replenish.</p>
             <div className="flex justify-center gap-2 flex-wrap">
               {TECH_STACK.map((tech) => (
                 <span key={tech} className="px-2 py-0.5 rounded bg-[var(--surface-raised)] border border-[var(--border)] text-[11px]">

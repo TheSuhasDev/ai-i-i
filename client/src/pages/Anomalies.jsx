@@ -17,13 +17,22 @@ const ANOMALY_COLS = [
   { header: "Product", key: "product_id" },
   { header: "Name", key: "name" },
   { header: "Type", key: "type", format: humanize },
+  { header: "Score", key: "score", format: (v) => (v != null ? v : "Rule") },
   { header: "Message", key: "message" },
-  { header: "Score", key: "score" },
 ];
+
+const STANDARD_TYPES = ["sales_spike", "zero_sales", "stock_mismatch", "supplier_delay"];
+
+function anomalyTone(type) {
+  if (type === "supplier_delay") return "status-critical";
+  if (type === "stock_mismatch" || type === "zero_sales") return "status-warning";
+  if (type === "sales_spike") return "status-info";
+  return "status-info";
+}
 
 /**
  * Groups anomaly rows by (product_id, type), keeping the latest date and a count.
- * Returns array of groups sorted by latest date descending.
+ * Returns array of groups sorted by latest date descending with rows sorted latest to earliest.
  */
 function groupAnomalies(rows) {
   const map = new Map();
@@ -37,23 +46,27 @@ function groupAnomalies(rows) {
     if (!g.latestDate || a.date > g.latestDate) g.latestDate = a.date;
     g.rows.push(a);
   }
-  return [...map.values()].sort((a, b) => b.latestDate.localeCompare(a.latestDate));
+  const result = [...map.values()].sort((a, b) => b.latestDate.localeCompare(a.latestDate));
+  for (const g of result) {
+    g.rows.sort((a, b) => b.date.localeCompare(a.date));
+  }
+  return result;
 }
 
 export default function Anomalies() {
   const toast = useToast();
   const [days, setDays] = useState(30);
   const [type, setType] = useState("");
+  const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
   const [expandedKeys, setExpandedKeys] = useState(new Set());
 
-  const limit = 50;
   const fetchIt = useCallback(
-    () => anomalyService.list({ days, limit, type: type || undefined, page }),
-    [days, type, page]
+    () => anomalyService.list({ days, limit: 1000 }),
+    [days]
   );
   const { state, data, error, analyzedAt, run } = useAnalysis(fetchIt, {
-    cacheKey: `anomalies-${days}-${type}-${page}`,
+    cacheKey: `anomalies-${days}`,
     onSuccess: () => toast.success("Anomaly detection analysis complete"),
   });
   const [showLoader, setShowLoader] = useState(false);
@@ -67,16 +80,86 @@ export default function Anomalies() {
     }
   }, [run]);
 
+  // If user changes time horizon while already in done state, re-run analysis automatically
+  const handleDaysChange = useCallback(
+    async (v) => {
+      const newDays = Number(v);
+      setDays(newDays);
+      setPage(1);
+      setType("");
+      setSearch("");
+      if (state === "done") {
+        setShowLoader(true);
+        try {
+          await run();
+        } catch {
+          // Handled in useAnalysis
+        }
+      }
+    },
+    [state, run]
+  );
+
+  const handleTypeChange = (v) => {
+    setType(v);
+    setPage(1);
+  };
+
   const res = data?.data;
-  const rows = useMemo(() => res?.anomalies ?? [], [res?.anomalies]);
-  const pagination = res?.pagination ?? null;
-  const types = Object.keys(res?.by_type ?? {});
-  const grouped = groupAnomalies(rows);
+  const allRows = useMemo(() => res?.allAnomalies ?? res?.anomalies ?? [], [res]);
+
+  const countsByType = useMemo(() => {
+    const counts = { ...(res?.by_type || {}) };
+    for (const t of STANDARD_TYPES) {
+      if (counts[t] === undefined) counts[t] = 0;
+    }
+    return counts;
+  }, [res]);
+
+  const types = useMemo(() => {
+    const rawKeys = Object.keys(countsByType);
+    return [...STANDARD_TYPES, ...rawKeys.filter((k) => !STANDARD_TYPES.includes(k))];
+  }, [countsByType]);
+
+  const topType = useMemo(() => {
+    const entries = Object.entries(countsByType);
+    if (!entries.length) return null;
+    return entries.reduce(
+      (top, [t, count]) => (!top || count > top.count ? { type: t, count } : top),
+      null
+    )?.type;
+  }, [countsByType]);
+
+  const filteredRows = useMemo(() => {
+    let result = allRows;
+    if (type) {
+      result = result.filter((r) => r.type === type);
+    }
+    if (search.trim()) {
+      const q = search.trim().toLowerCase();
+      result = result.filter(
+        (r) =>
+          (r.product_id && r.product_id.toLowerCase().includes(q)) ||
+          (r.name && r.name.toLowerCase().includes(q)) ||
+          (r.message && r.message.toLowerCase().includes(q))
+      );
+    }
+    return result;
+  }, [allRows, type, search]);
+
+  const grouped = useMemo(() => groupAnomalies(filteredRows), [filteredRows]);
+
+  const pageSize = 20;
+  const totalPages = Math.max(1, Math.ceil(grouped.length / pageSize));
+  const currentPage = Math.min(page, totalPages);
+  const paginatedGroups = useMemo(() => {
+    return grouped.slice((currentPage - 1) * pageSize, currentPage * pageSize);
+  }, [grouped, currentPage, pageSize]);
 
   const timelineData = useMemo(() => {
-    if (!rows.length) return [];
+    if (!filteredRows.length) return [];
     const map = {};
-    for (const r of rows) {
+    for (const r of filteredRows) {
       const d = r.date ? r.date.slice(0, 10) : "";
       if (!d) continue;
       const label = formatDate(d);
@@ -89,8 +172,8 @@ export default function Anomalies() {
     }
     return Object.values(map)
       .sort((a, b) => a.rawDate.localeCompare(b.rawDate))
-      .slice(-25);
-  }, [rows]);
+      .slice(-30);
+  }, [filteredRows]);
 
   const toggleExpand = (key) => {
     setExpandedKeys((prev) => {
@@ -100,9 +183,6 @@ export default function Anomalies() {
       return next;
     });
   };
-
-  const handleDaysChange = (v) => { setDays(Number(v)); setPage(1); };
-  const handleTypeChange = (v) => { setType(v); setPage(1); };
 
   return (
     <div>
@@ -161,11 +241,26 @@ export default function Anomalies() {
         triggers per individual PO (≥15 days late), not per supplier average — use Supplier Risk to see chronic delay patterns.
       </p>
 
-      <div className="cards">
+      <div className="cards" style={{ marginBottom: "16px" }}>
+        <button
+          type="button"
+          className={`card stat${type === "" ? " active" : ""}`}
+          onClick={() => { setType(""); setPage(1); }}
+          style={{ cursor: "pointer", textAlign: "left" }}
+        >
+          <h4>All Anomalies</h4>
+          <p className="big">{allRows.length}</p>
+        </button>
         {types.map((t) => (
-          <button key={t} className={`card stat${type === t ? " active" : ""}`} onClick={() => handleTypeChange(type === t ? "" : t)} style={{ cursor: "pointer", textAlign: "left" }}>
+          <button
+            key={t}
+            type="button"
+            className={`card stat${type === t ? " active" : ""}`}
+            onClick={() => handleTypeChange(type === t ? "" : t)}
+            style={{ cursor: "pointer", textAlign: "left" }}
+          >
             <h4>{humanize(t)}</h4>
-            <p className="big">{res.by_type[t]}</p>
+            <p className="big">{countsByType[t] || 0}</p>
           </button>
         ))}
       </div>
@@ -174,7 +269,7 @@ export default function Anomalies() {
         <ChartCard
           title="Anomaly Timeline by Type"
           subtitle="When did unusual spikes, dropouts, or supplier delays occur?"
-          takeaway={`${res.total ?? rows.length} anomalies detected across ${days} days${types.length ? `, mostly in ${humanize(types[0])}` : ""}.`}
+          takeaway={`${filteredRows.length} ${filteredRows.length === 1 ? "anomaly" : "anomalies"} across ${days} days${topType ? `, mostly in ${humanize(topType)} (${countsByType[topType] || 0})` : ""}.`}
           className="my-4"
         >
           <div style={{ width: "100%", height: 220 }}>
@@ -204,7 +299,14 @@ export default function Anomalies() {
         </ChartCard>
       )}
 
-      <div className="toolbar">
+      <div className="toolbar" style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: "10px" }}>
+        <input
+          type="search"
+          placeholder="Filter by product or code..."
+          value={search}
+          onChange={(e) => { setSearch(e.target.value); setPage(1); }}
+          style={{ maxWidth: "230px" }}
+        />
         <select value={days} onChange={(e) => handleDaysChange(e.target.value)}>
           <option value={30}>Last 30 days</option>
           <option value={90}>Last 90 days</option>
@@ -213,10 +315,18 @@ export default function Anomalies() {
         </select>
         <select value={type} onChange={(e) => handleTypeChange(e.target.value)}>
           <option value="">All types</option>
-          {types.map((t) => <option key={t} value={t}>{humanize(t)}</option>)}
+          {types.map((t) => (
+            <option key={t} value={t}>
+              {humanize(t)} ({countsByType[t] || 0})
+            </option>
+          ))}
         </select>
-        <span className="muted">{res ? `${res.total ?? res.count} total` : ""}</span>
-        <button className="btn" onClick={() => exportCsv("anomalies", ANOMALY_COLS, rows)} disabled={!rows.length}>Export CSV</button>
+        <span className="muted" style={{ marginLeft: "auto" }}>
+          {filteredRows.length} {filteredRows.length === 1 ? "anomaly" : "anomalies"} ({grouped.length} {grouped.length === 1 ? "group" : "groups"})
+        </span>
+        <button className="btn" onClick={() => exportCsv("anomalies", ANOMALY_COLS, filteredRows)} disabled={!filteredRows.length}>
+          Export CSV
+        </button>
       </div>
 
       {error && <div className="alert">{error}</div>}
@@ -225,7 +335,7 @@ export default function Anomalies() {
         <table>
           <thead>
             <tr>
-              <th></th>
+              <th style={{ width: "30px" }}></th>
               <th>Latest date</th>
               <th>Product</th>
               <th>Type</th>
@@ -234,28 +344,28 @@ export default function Anomalies() {
             </tr>
           </thead>
           <tbody>
-            {grouped.length === 0 ? (
-              <tr><td colSpan={6} className="center">No anomalies in this period</td></tr>
+            {paginatedGroups.length === 0 ? (
+              <tr><td colSpan={6} className="center">No anomalies found</td></tr>
             ) : (
-              grouped.map((g) => {
+              paginatedGroups.map((g) => {
                 const key = `${g.product_id}||${g.type}`;
                 const expanded = expandedKeys.has(key);
                 const latestRow = g.rows[0];
                 return [
                   <tr key={key} className="group-row" style={{ cursor: "pointer" }} onClick={() => toggleExpand(key)}>
-                    <td style={{ width: "20px", userSelect: "none" }}>{expanded ? "▾" : "▸"}</td>
+                    <td style={{ width: "30px", userSelect: "none", textAlign: "center" }}>{expanded ? "▾" : "▸"}</td>
                     <td>{formatDate(g.latestDate)}</td>
-                    <td><ProductCell product={{ code: g.product_id, name: g.name }} size="md" imageList={rows} /></td>
-                    <td><Pill value={humanize(g.type)} /></td>
-                    <td className="numeric">{g.count}</td>
+                    <td><ProductCell product={{ code: g.product_id, name: g.name }} size="md" imageList={filteredRows} /></td>
+                    <td><Pill value={humanize(g.type)} tone={anomalyTone(g.type)} /></td>
+                    <td className="numeric"><span className="badge" style={{ fontWeight: 600 }}>{g.count}</span></td>
                     <td className="wrap">
                       <div style={{ lineHeight: "1.4" }}>
-                        <div style={{ wordBreak: "break-word", whiteSpace: expanded ? "normal" : "normal" }}>
+                        <div style={{ wordBreak: "break-word" }}>
                           {latestRow?.message}
                         </div>
                         {g.count > 1 && !expanded && (
                           <span className="muted small" style={{ fontSize: "11px", display: "inline-block", marginTop: "3px" }}>
-                            +{g.count - 1} earlier occurrences (click to view)
+                            +{g.count - 1} earlier occurrences (click row to expand)
                           </span>
                         )}
                       </div>
@@ -264,11 +374,23 @@ export default function Anomalies() {
                   expanded && g.rows.map((a, i) => (
                     <tr key={`${key}-detail-${i}`} className="detail-row" style={{ background: "var(--surface-raised)" }}>
                       <td></td>
-                      <td style={{ paddingLeft: "28px", color: "var(--muted)", fontSize: ".85em" }}>{formatDate(a.date)}</td>
+                      <td style={{ paddingLeft: "24px", color: "var(--muted)", fontSize: ".85em" }}>
+                        ↳ {formatDate(a.date)}
+                      </td>
                       <td></td>
                       <td></td>
-                      <td className="numeric">{a.score != null ? a.score : "-"}</td>
-                      <td className="wrap" style={{ fontSize: ".85em", lineHeight: "1.45", wordBreak: "break-word" }}>{a.message}</td>
+                      <td className="numeric">
+                        {a.score != null ? (
+                          <span className="badge" title="Isolation Forest anomaly score" style={{ fontSize: "11px" }}>
+                            Score {a.score}
+                          </span>
+                        ) : (
+                          <span className="badge muted" style={{ fontSize: "11px" }}>Rule</span>
+                        )}
+                      </td>
+                      <td className="wrap" style={{ fontSize: ".85em", lineHeight: "1.45", wordBreak: "break-word" }}>
+                        {a.message}
+                      </td>
                     </tr>
                   )),
                 ];
@@ -277,8 +399,11 @@ export default function Anomalies() {
           </tbody>
         </table>
       </div>
-      {pagination && (
-        <Pagination pagination={pagination} onPage={(p) => setPage(p)} />
+      {totalPages > 1 && (
+        <Pagination
+          pagination={{ page: currentPage, limit: pageSize, total: grouped.length, pages: totalPages }}
+          onPage={(p) => setPage(p)}
+        />
       )}
         </AnalysisReveal>
       )}

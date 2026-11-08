@@ -127,7 +127,7 @@ export async function listInsights(req, res) {
   let query = Insight.find(filter);
   if (req.query.full !== "1") {
     query = query.select(
-      "productCode asOf dataAsOf priority healthScore healthStatus riskPct orderQty daysOfCover marginDays computedAt data.name data.as_of data.data_as_of data.inputs.data_as_of data.inputs.data_age_days data.classification data.reorder.supplier_id data.reorder.supplier_risk_level data.reorder.alternate_supplier data.reorder.order_qty data.trend.pattern data.trend.trend data.trend.yoy_change_pct data.trend.monthly_index data.trend.weekly_series"
+      "productCode asOf dataAsOf priority healthScore healthStatus riskPct orderQty daysOfCover marginDays computedAt data.name data.as_of data.data_as_of data.inputs.data_as_of data.inputs.data_age_days data.classification data.reorder.supplier_id data.reorder.supplier_risk_level data.reorder.alternate_supplier data.reorder.order_qty data.trend.pattern data.trend.trend data.trend.yoy_change_pct data.trend.monthly_index data.trend.weekly_series data.alerts"
     );
   }
   const [docs, maxSale] = await Promise.all([
@@ -135,10 +135,85 @@ export async function listInsights(req, res) {
     Sale.findOne().sort({ date: -1 }).select("date").lean(),
   ]);
   const liveDataDate = maxSale?.date ? maxSale.date.toISOString().slice(0, 10) : null;
-  docs.sort((a, b) => RANK[a.priority] - RANK[b.priority] || a.healthScore - b.healthScore);
+
+  // Sorting within severity tiers by urgency: smallest margin / largest days-short first;
+  // Overstock by days of cover descending; tie-break by alert count, then SKU.
+  function compareUrgency(a, b) {
+    const prioA = RANK[a.priority] ?? 99;
+    const prioB = RANK[b.priority] ?? 99;
+    if (prioA !== prioB) return prioA - prioB;
+
+    const alertsA = a.data?.alerts || [];
+    const alertsB = b.data?.alerts || [];
+    const isOverstockA = alertsA.some((x) => x.type === "overstock") && !alertsA.some((x) => (x.type || "").includes("margin") || (x.type || "").includes("stockout"));
+    const isOverstockB = alertsB.some((x) => x.type === "overstock") && !alertsB.some((x) => (x.type || "").includes("margin") || (x.type || "").includes("stockout"));
+
+    if (isOverstockA && isOverstockB) {
+      const covA = a.daysOfCover ?? a.data?.stockout?.days_of_cover ?? 0;
+      const covB = b.daysOfCover ?? b.data?.stockout?.days_of_cover ?? 0;
+      if (covB !== covA) return covB - covA;
+    } else if (!isOverstockA && !isOverstockB) {
+      const marA = a.marginDays ?? a.data?.stockout?.margin_days ?? 999;
+      const marB = b.marginDays ?? b.data?.stockout?.margin_days ?? 999;
+      if (marA !== marB) return marA - marB;
+    } else {
+      return isOverstockA ? 1 : -1;
+    }
+
+    const countA = alertsA.length;
+    const countB = alertsB.length;
+    if (countB !== countA) return countB - countA;
+
+    const codeA = a.productCode || a.code || "";
+    const codeB = b.productCode || b.code || "";
+    return codeA.localeCompare(codeB);
+  }
+
+  docs.sort(compareUrgency);
+
+  // Compute KPI counts both as alerts and as distinct products per priority
+  const kpi = {
+    critical: { alerts: 0, products: 0 },
+    high: { alerts: 0, products: 0 },
+    medium: { alerts: 0, products: 0 },
+    low: { alerts: 0, products: 0 },
+    totalAlerts: 0,
+    totalProductsWithAlerts: 0,
+  };
+
+  const productsByPriority = {
+    critical: new Set(),
+    high: new Set(),
+    medium: new Set(),
+    low: new Set(),
+  };
+  const allAlertProducts = new Set();
+
+  for (const doc of docs) {
+    const pid = doc.productCode || doc.code || String(doc._id || "");
+    const alerts = doc.data?.alerts || [];
+    if (alerts.length > 0) {
+      allAlertProducts.add(pid);
+    }
+    for (const a of alerts) {
+      const p = (a.priority || "Low").toLowerCase();
+      if (kpi[p]) {
+        kpi[p].alerts += 1;
+        kpi.totalAlerts += 1;
+        productsByPriority[p].add(pid);
+      }
+    }
+  }
+
+  for (const p of ["critical", "high", "medium", "low"]) {
+    kpi[p].products = productsByPriority[p].size;
+  }
+  kpi.totalProductsWithAlerts = allAlertProducts.size;
+
   res.json({
     success: true,
     count: docs.length,
+    kpi,
     dataDate: liveDataDate,
     dataAsOf: liveDataDate,
     data: docs,

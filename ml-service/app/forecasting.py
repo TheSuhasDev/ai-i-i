@@ -17,7 +17,7 @@ from sklearn.ensemble import HistGradientBoostingRegressor, RandomForestRegresso
 from app.preprocessing import build_weekly_dataset, holiday_flags
 
 MODEL_PATH = Path(__file__).resolve().parents[1] / "models" / "forecast_models.joblib"
-HORIZONS = (1, 2, 3)
+HORIZONS = (1, 2, 3, 4)
 RATIO_CAP = 3.0  # clips spike-polluted ratios
 
 FCOLS = [
@@ -134,27 +134,56 @@ def load_state():
     return bundle, weekly
 
 
-def forecast_product(product_id, promo_days=None, price=None):
+def forecast_product(product_id, promo_days=None, price=None, apply_seasonality=True):
     bundle, weekly = load_state()
     w = weekly[weekly["product_id"].astype(str) == str(product_id)]
     if w.empty:
         raise KeyError(product_id)
 
-    ext = extend_with_future(w, promo_days, price)
+    tr = None
+    if apply_seasonality:
+        try:
+            from app.trend import trend_for_product
+            tr = trend_for_product(product_id)
+        except Exception:
+            tr = None
+
     origin = w["week_start"].max()
+    peak_in_recent = False
+    if apply_seasonality and tr and tr.get("seasonal", False):
+        peak_m = tr.get("peak_month")
+        if peak_m:
+            import calendar
+            recent_months = {calendar.month_abbr[(origin - pd.Timedelta(days=k)).month] for k in range(28)}
+            peak_in_recent = peak_m in recent_months
+
+    ext = extend_with_future(w, promo_days, price)
     weeks = []
+    max_h = max(bundle["models"].keys())
     for h in HORIZONS:
         tbl = make_origin_table(ext, h)
         row = tbl[tbl["origin_week_start"] == origin]
         if row[FCOLS].isna().any(axis=None):
             raise ValueError("Not enough history (need 8+ weeks) to forecast this product")
-        ratio = float(bundle["models"][h].predict(row[FCOLS])[0])
+        model = bundle["models"].get(h, bundle["models"][max_h])
+        q10, q90 = bundle["residual_q"].get(h, bundle["residual_q"][max_h])
+        ratio = float(model.predict(row[FCOLS])[0])
         scale = float(row["scale"].iloc[0])
-        q10, q90 = bundle["residual_q"][h]
-        point = max(ratio * scale, 0.0)
-        low = min(max((ratio + q10) * scale, 0.0), point)
-        high = max((ratio + q90) * scale, point)
+
         start = origin + pd.Timedelta(weeks=h)
+        mid = start + pd.Timedelta(days=3)
+        target_month = mid.month
+
+        # Apply monthly seasonal index only when recent 28d window doesn't already cover peak
+        season_mult = 1.0
+        if apply_seasonality and tr and tr.get("seasonal", False) and not peak_in_recent:
+            m_idx = tr.get("monthly_index", [])
+            if len(m_idx) >= target_month:
+                season_mult = float(m_idx[target_month - 1])
+
+        point = max(ratio * scale * season_mult, 0.0)
+        low = min(max((ratio + q10) * scale * season_mult, 0.0), point)
+        high = max((ratio + q90) * scale * season_mult, point)
         weeks.append({
             "horizon_week": h,
             "week_start": start.date().isoformat(),
@@ -171,7 +200,11 @@ def forecast_product(product_id, promo_days=None, price=None):
         "lead_time_days": lead,
         "lead_time_demand": round(lead_time_demand([x["forecast"] for x in weeks], lead), 1),
         "lead_time_demand_high": round(lead_time_demand([x["high"] for x in weeks], lead), 1),
-        "assumptions": {"promo_days": list(promo_days or [0, 0, 0]), "price": price if price is not None else "last week's price"},
+        "assumptions": {
+            "promo_days": list(promo_days or [0] * len(HORIZONS)),
+            "price": price if price is not None else "last week's price",
+            "seasonality_applied": bool(apply_seasonality and tr and tr.get("seasonal", False)),
+        },
         "models": bundle["model_names"],
         "interval": "80% (validation residual quantiles)",
     }

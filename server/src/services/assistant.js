@@ -6,7 +6,7 @@ import { toolDefinitions, runTool } from "./assistantTools.js";
 const MAX_STEPS = 6;
 const TIMEOUT_MS = 60000;
 
-export const SYSTEM_PROMPT = `You are the inventory assistant inside "AI Inventory Intelligence", a decision-support app for a small retailer.
+export const SYSTEM_PROMPT = `You are the inventory assistant inside "Replenix", a decision-support app for a small retailer.
 All data is a synthetic demo dataset. You MUST call the provided tools to look up anything about products, stock, suppliers, alerts, forecasts, risk, reorder quantities, simulations or model accuracy. Never answer inventory questions from memory and never guess numbers. If a tool returns an error or no data, say so plainly.
 
 Rules:
@@ -53,10 +53,16 @@ async function callModel(body, attempt = 0) {
     const detail = data?.error?.message || (Array.isArray(data) ? data[0]?.error?.message : "") || "";
     console.error("LLM API error:", res.status, detail);
 
-    // Free models sometimes fail to emit a valid tool call (400) or hiccup (5xx): retry once.
-    if (attempt === 0 && (res.status === 400 || res.status >= 500)) {
-      await sleep(700);
-      return callModel(body, 1);
+    // Retry on transient 429 rate limits, 400 bad function call formatting, or 5xx server errors
+    if (attempt < 2 && (res.status === 400 || res.status === 429 || res.status >= 500)) {
+      let waitMs = 700;
+      if (res.status === 429) {
+        const match = detail.match(/try again in ([0-9.]+)s/i);
+        const retrySec = match ? parseFloat(match[1]) : (Number(res.headers?.get?.("retry-after")) || 2.5);
+        waitMs = Math.min(Math.max(Math.ceil(retrySec * 1000) + 500, 1000), 16000);
+      }
+      await sleep(waitMs);
+      return callModel(body, attempt + 1);
     }
     // Never pass 401 through: the client would treat it as an expired login.
     if (res.status === 401 || res.status === 403) throw new AppError("The AI assistant could not authenticate. Check LLM_API_KEY on the server.", 503);

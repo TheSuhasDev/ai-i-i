@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useMemo } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import {
   Bar,
@@ -36,8 +36,18 @@ const PREFERRED = [
   "delivered_pos",
 ];
 
+const COL_HEADERS = {
+  reliability_score: "Reliability Score",
+  risk_level: "Risk Level",
+  on_time_rate: "On-Time Rate",
+  quality_issue_rate: "Quality Issue Rate",
+  avg_delay_days: "Avg Delay (Days)",
+  delay_std_days: "Delay Std (Days)",
+  delivered_pos: "Delivered POs",
+};
+
 const COL_DESCRIPTIONS = {
-  reliability_score: "Composite performance rating (0–100, higher is better) based on lead time consistency and defect rates.",
+  reliability_score: "Composite performance rating (0–100, higher is better) weighting on-time delivery (40%), delay magnitude (25%), delay variance (20%), and defect rates (15%).",
   risk_level: "Risk tier derived from reliability: Low (≥80), Medium (60–79), High (<60).",
   on_time_rate: "Percentage of delivered orders arriving on or before the expected delivery date.",
   quality_issue_rate: "Percentage of delivered orders flagged with defect or quality issues.",
@@ -49,6 +59,7 @@ const COL_DESCRIPTIONS = {
 function cell(key, v) {
   if (key === "risk_level") return <Pill value={v} />;
   if (key === "on_time_rate" || key === "quality_issue_rate") return pct(v, 1);
+  if (key === "delivered_pos") return num(v, 0);
   if (typeof v === "number") return num(v, 1);
   return v ?? "-";
 }
@@ -62,6 +73,8 @@ export default function SupplierRisk() {
     onSuccess: () => toast.success("Supplier risk analysis complete"),
   });
   const [showLoader, setShowLoader] = useState(false);
+  const [sortBy, setSortBy] = useState("reliability_score");
+  const [sortDirection, setSortDirection] = useState("asc");
 
   const handleAnalyze = useCallback(async () => {
     setShowLoader(true);
@@ -72,24 +85,56 @@ export default function SupplierRisk() {
     }
   }, [run]);
 
-  const rows = data?.data ?? [];
-  const supList = sup.data?.data ?? [];
-  const names = Object.fromEntries(supList.map((s) => [s.code, s.name]));
-  const supMap = Object.fromEntries(supList.map((s) => [s.code, s]));
-  // Exclude redundant risk_score (since risk_level and reliability_score already convey this clearly)
-  const keys = [...new Set(rows.flatMap((r) => Object.keys(r)))].filter(
-    (k) => k !== "supplier_id" && k !== "risk_score"
-  );
-  const cols = [...PREFERRED.filter((k) => keys.includes(k)), ...keys.filter((k) => !PREFERRED.includes(k))];
+  const rows = useMemo(() => data?.data ?? [], [data]);
+  const supList = useMemo(() => sup.data?.data ?? [], [sup.data]);
+  const names = useMemo(() => Object.fromEntries(supList.map((s) => [s.code, s.name])), [supList]);
+  const supMap = useMemo(() => Object.fromEntries(supList.map((s) => [s.code, s])), [supList]);
+  
+  const cols = useMemo(() => {
+    // Exclude redundant risk_score (since risk_level and reliability_score already convey this clearly)
+    const keys = [...new Set(rows.flatMap((r) => Object.keys(r)))].filter(
+      (k) => k !== "supplier_id" && k !== "risk_score"
+    );
+    return [...PREFERRED.filter((k) => keys.includes(k)), ...keys.filter((k) => !PREFERRED.includes(k))];
+  }, [rows]);
 
-  const chartData = rows.map((r) => ({
-    name: `${r.supplier_id} ${names[r.supplier_id] || ""}`,
-    onTimePct: Math.round((r.on_time_rate || 0) * 100),
-    reliability: Math.round(r.reliability_score || 0),
-    risk: r.risk_level,
-  }));
+  const sortedRows = useMemo(() => {
+    return [...rows].sort((a, b) => {
+      let aVal = a[sortBy];
+      let bVal = b[sortBy];
+      if (sortBy === "supplier") {
+        aVal = `${a.supplier_id} ${names[a.supplier_id] || ""}`.trim();
+        bVal = `${b.supplier_id} ${names[b.supplier_id] || ""}`.trim();
+        return aVal.localeCompare(bVal) * (sortDirection === "asc" ? 1 : -1);
+      }
+      if (sortBy === "risk_level") {
+        const rank = { High: 0, Medium: 1, Low: 2 };
+        aVal = rank[a.risk_level] ?? 99;
+        bVal = rank[b.risk_level] ?? 99;
+      }
+      const aMissing = aVal == null || Number.isNaN(Number(aVal));
+      const bMissing = bVal == null || Number.isNaN(Number(bVal));
+      if (aMissing !== bMissing) return aMissing ? 1 : -1;
+      if (typeof aVal === "string") {
+        return aVal.localeCompare(String(bVal)) * (sortDirection === "asc" ? 1 : -1);
+      }
+      return (Number(aVal) - Number(bVal)) * (sortDirection === "asc" ? 1 : -1);
+    });
+  }, [rows, sortBy, sortDirection, names]);
+
+  const chartData = useMemo(() => {
+    return rows.map((r) => ({
+      supplier_id: r.supplier_id,
+      name: `${r.supplier_id} ${names[r.supplier_id] || ""}`.trim(),
+      onTimePct: Math.round((r.on_time_rate || 0) * 100),
+      reliability: Math.round(r.reliability_score || 0),
+      risk: r.risk_level,
+    }));
+  }, [rows, names]);
   const avgReliability = rows.length ? Math.round(rows.reduce((s, r) => s + (r.reliability_score || 0), 0) / rows.length) : 0;
+  const avgOnTime = rows.length ? Math.round((rows.reduce((s, r) => s + (r.on_time_rate || 0), 0) / rows.length) * 100) : 0;
   const highRiskCount = rows.filter((r) => r.risk_level === "High").length;
+  const belowTargetCount = rows.filter((r) => Math.round((r.on_time_rate || 0) * 100) < 80).length;
 
   return (
     <div>
@@ -130,8 +175,24 @@ export default function SupplierRisk() {
         <AnalysisReveal analyzedAt={analyzedAt} onRerun={handleAnalyze} isRunning={state === "running"}>
           <div className="cards" style={{ marginBottom: "18px" }}>
             <MetricCard label="Active Suppliers" value={rows.length} sub="Monitored in catalog" tone="tone-healthy" />
-            <MetricCard label="Average Reliability" value={`${avgReliability}/100`} sub="Composite score" tone="tone-healthy" />
-            <MetricCard label="High-Risk Suppliers" value={highRiskCount} sub="Reliability below 60%" tone={highRiskCount ? "tone-critical" : "tone-healthy"} />
+            <MetricCard
+              label="Average Reliability"
+              value={`${avgReliability}/100`}
+              sub="Composite rating"
+              tone={avgReliability >= 80 ? "tone-healthy" : avgReliability >= 60 ? "tone-warning" : "tone-critical"}
+            />
+            <MetricCard
+              label="Average On-Time Rate"
+              value={`${avgOnTime}%`}
+              sub="Delivered orders on-time"
+              tone={avgOnTime >= 80 ? "tone-healthy" : "tone-warning"}
+            />
+            <MetricCard
+              label="High-Risk Suppliers"
+              value={highRiskCount}
+              sub="Reliability below 60%"
+              tone={highRiskCount ? "tone-critical" : "tone-healthy"}
+            />
           </div>
 
           {rows.length > 0 && (
@@ -139,10 +200,11 @@ export default function SupplierRisk() {
               title="On-Time Delivery Rate by Supplier"
               subtitle="Which suppliers consistently deliver purchase orders before the promised ETA?"
               takeaway={
-                highRiskCount > 0
-                  ? `${highRiskCount} supplier${highRiskCount > 1 ? "s" : ""} fall below the 80% on-time target. Click any bar to inspect delivery delays.`
+                belowTargetCount > 0
+                  ? `${belowTargetCount} supplier${belowTargetCount > 1 ? "s" : ""} fall below the 80% on-time target. Click any bar to inspect delivery delays.`
                   : "All monitored suppliers meet or exceed the 80% on-time target."
               }
+              takeawayTone={belowTargetCount > 0 ? "warning" : "healthy"}
               className="mb-4"
             >
               <div style={{ width: "100%", height: 240 }}>
@@ -151,12 +213,10 @@ export default function SupplierRisk() {
                     data={chartData}
                     margin={{ top: 20, right: 20, left: 0, bottom: 25 }}
                     onClick={(entry) => {
-                      if (entry?.activePayload?.[0]?.payload) {
-                        const targetRow = rows.find((r) => `${r.supplier_id} ${names[r.supplier_id] || ""}` === entry.activePayload[0].payload.name);
-                        if (targetRow) {
-                          const s = supMap[targetRow.supplier_id];
-                          navigate(`/supplier-risk/${s?._id || targetRow.supplier_id}/deliveries`);
-                        }
+                      const supplierId = entry?.activePayload?.[0]?.payload?.supplier_id;
+                      if (supplierId) {
+                        const s = supMap[supplierId];
+                        navigate(`/supplier-risk/${s?._id || supplierId}/deliveries`);
                       }
                     }}
                     style={{ cursor: "pointer" }}
@@ -164,7 +224,7 @@ export default function SupplierRisk() {
                     <CartesianGrid {...CHART_GRID_PROPS} />
                     <XAxis dataKey="name" {...X_AXIS_PROPS} interval={0} angle={-15} textAnchor="end" height={45} tick={{ fontSize: 11 }} />
                     <YAxis {...Y_AXIS_PROPS} unit="%" domain={[0, 100]} width={45} />
-                    <Tooltip content={<ChartTooltip unit="%" />} />
+                    <Tooltip content={<ChartTooltip formatter={(v) => [`${v}%`, "On-Time Rate"]} />} />
                     <ReferenceLine y={80} stroke="var(--muted)" strokeDasharray="4 4" label={{ value: "80% Target", fill: "var(--muted)", position: "insideTopRight", fontSize: 11 }} />
                     <Bar dataKey="onTimePct" name="On-Time Rate" radius={[4, 4, 0, 0]} isAnimationActive={false}>
                       <LabelList dataKey="onTimePct" position="top" formatter={(v) => `${v}%`} fontSize={10} fill="var(--text)" />
@@ -186,32 +246,69 @@ export default function SupplierRisk() {
               const supCols = [
                 { header: "Supplier", key: "supplier_id", format: (v) => `${v} ${names[v] || ""}`.trim() },
                 ...cols.map((c) => ({
-                  header: humanize(c),
+                  header: COL_HEADERS[c] || humanize(c),
                   key: c,
-                  format: (v) => (c === "on_time_rate" || c === "quality_issue_rate" ? pct(v, 1) : v),
+                  format: (v) => (
+                    c === "on_time_rate" || c === "quality_issue_rate"
+                      ? pct(v, 1)
+                      : c === "delivered_pos"
+                      ? num(v, 0)
+                      : typeof v === "number"
+                      ? num(v, 1)
+                      : v
+                  ),
                 })),
               ];
-              exportCsv("supplier-risk", supCols, rows);
+              exportCsv("supplier-risk", supCols, sortedRows);
             }}>Export CSV</button>
           </div>
           <div className="table-wrap">
             <table>
               <thead>
                 <tr>
-                  <th>Supplier</th>
-                  {cols.map((c) => (
-                    <th key={c} title={COL_DESCRIPTIONS[c] || humanize(c)} style={{ cursor: COL_DESCRIPTIONS[c] ? "help" : "default" }}>
-                      {humanize(c)}
-                      {COL_DESCRIPTIONS[c] && <span style={{ opacity: 0.5, marginLeft: 4, fontSize: "0.8em" }}>ℹ</span>}
-                    </th>
-                  ))}
+                  <th>
+                    <button
+                      type="button"
+                      className="sort-button"
+                      onClick={() => {
+                        if (sortBy === "supplier") setSortDirection((d) => (d === "asc" ? "desc" : "asc"));
+                        else {
+                          setSortBy("supplier");
+                          setSortDirection("asc");
+                        }
+                      }}
+                    >
+                      Supplier {sortBy === "supplier" ? (sortDirection === "asc" ? "↑" : "↓") : ""}
+                    </button>
+                  </th>
+                  {cols.map((c) => {
+                    const isSorted = sortBy === c;
+                    return (
+                      <th key={c} title={COL_DESCRIPTIONS[c] || COL_HEADERS[c] || humanize(c)} style={{ cursor: COL_DESCRIPTIONS[c] ? "help" : "default" }}>
+                        <button
+                          type="button"
+                          className="sort-button"
+                          onClick={() => {
+                            if (sortBy === c) setSortDirection((d) => (d === "asc" ? "desc" : "asc"));
+                            else {
+                              setSortBy(c);
+                              setSortDirection(c === "reliability_score" || c === "on_time_rate" ? "asc" : "desc");
+                            }
+                          }}
+                        >
+                          {COL_HEADERS[c] || humanize(c)} {isSorted ? (sortDirection === "asc" ? "↑" : "↓") : ""}
+                        </button>
+                        {COL_DESCRIPTIONS[c] && <span style={{ opacity: 0.5, marginLeft: 4, fontSize: "0.8em" }}>ℹ</span>}
+                      </th>
+                    );
+                  })}
                 </tr>
               </thead>
               <tbody>
-                {rows.length === 0 ? (
+                {sortedRows.length === 0 ? (
                   <tr><td colSpan={cols.length + 1} className="center">No supplier risk data is available yet.</td></tr>
                 ) : (
-                  rows.map((r) => {
+                  sortedRows.map((r) => {
                     const s = supMap[r.supplier_id];
                     const targetId = s?._id || r.supplier_id;
                     return (

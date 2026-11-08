@@ -18,33 +18,35 @@ def test_safety_stock_grows_with_lead_time_variance():
 
 
 def test_reorder_basic():
-    r = smart_reorder(forecast_ltd=100, lead_time_days=5, sigma_daily=0, stock=40)
-    assert r["order_qty"] == 60 and r["needs_reorder"]
+    r = smart_reorder(forecast_ltd=100, lead_time_days=5, sigma_daily=0, stock=40, review_period_days=7)
+    # daily = 20, lead_time_demand = 100, review_demand = 140, target = 240, stock = 40 => order 200
+    assert r["order_qty"] == 200 and r["needs_reorder"]
     assert r["reorder_point"] == 100.0
+    assert r["order_up_to_target"] == 240.0
 
 
 def test_reorder_covers_expected_supplier_delay():
-    r = smart_reorder(forecast_ltd=100, lead_time_days=5, sigma_daily=0, stock=40, avg_delay_days=5)
-    assert r["order_qty"] == 160      # 20/day for 10 days = 200, minus 40
+    r = smart_reorder(forecast_ltd=100, lead_time_days=5, sigma_daily=0, stock=40, avg_delay_days=5, review_period_days=7)
+    # daily = 20, eff_lt = 10 => demand = 200, review_demand = 140, target = 340, stock = 40 => order 300
+    assert r["order_qty"] == 300
 
 
 def test_reorder_buffer_grows_with_unreliable_supplier():
-    r = smart_reorder(forecast_ltd=80, lead_time_days=4, sigma_daily=10, stock=50, reliability=50)
-    assert r["order_qty"] == 72       # 80 + 33 * 1.25 = 121.25, minus 50, rounded up
-    good = smart_reorder(forecast_ltd=80, lead_time_days=4, sigma_daily=10, stock=50, reliability=100)
-    bad = smart_reorder(forecast_ltd=80, lead_time_days=4, sigma_daily=10, stock=50, reliability=0)
+    r = smart_reorder(forecast_ltd=80, lead_time_days=4, sigma_daily=10, stock=50, reliability=50, review_period_days=7, moq=1)
+    good = smart_reorder(forecast_ltd=80, lead_time_days=4, sigma_daily=10, stock=50, reliability=100, review_period_days=7, moq=1)
+    bad = smart_reorder(forecast_ltd=80, lead_time_days=4, sigma_daily=10, stock=50, reliability=0, review_period_days=7, moq=1)
     assert good["order_qty"] < r["order_qty"] < bad["order_qty"]
 
 
 def test_reorder_counts_open_orders():
-    base = smart_reorder(forecast_ltd=100, lead_time_days=5, sigma_daily=0, stock=40)
-    open_po = smart_reorder(forecast_ltd=100, lead_time_days=5, sigma_daily=0, stock=40, on_order=60)
-    assert base["order_qty"] == 60 and open_po["order_qty"] == 0
+    base = smart_reorder(forecast_ltd=100, lead_time_days=5, sigma_daily=0, stock=40, review_period_days=7)
+    open_po = smart_reorder(forecast_ltd=100, lead_time_days=5, sigma_daily=0, stock=40, on_order=200, review_period_days=7)
+    assert base["order_qty"] == 200 and open_po["order_qty"] == 0
 
 
 def test_open_po_covering_need_has_zero_suggested_qty():
-    # Power Bank (P010) scenario: target need ~ 422 units, stock 0, open PO 422
-    r = smart_reorder(forecast_ltd=320, lead_time_days=7, sigma_daily=20, stock=0, on_order=422)
+    # When open PO covers the order-up-to target (e.g. position exceeds target)
+    r = smart_reorder(forecast_ltd=320, lead_time_days=7, sigma_daily=20, stock=0, on_order=1000)
     assert r["order_qty"] == 0
     assert r["needs_reorder"] is False
 
@@ -99,6 +101,60 @@ def test_supplier_scores_ignore_undelivered():
 
 def test_moq_rounding():
     # If unrounded need is 9 units, minimum order quantity enforces at least 10 units
-    r = smart_reorder(forecast_ltd=10, lead_time_days=5, sigma_daily=0, stock=1, moq=10)
+    r = smart_reorder(forecast_ltd=10, lead_time_days=5, sigma_daily=0, stock=1, moq=10, review_period_days=0)
     assert r["order_qty"] == 10
     assert r["needs_reorder"] is True
+    # If unrounded need is 13 units and moq is 10, rounds up to 20
+    r2 = smart_reorder(forecast_ltd=20, lead_time_days=5, sigma_daily=0, stock=7, moq=10, review_period_days=0)
+    assert r2["order_qty"] == 20
+
+
+def test_hysteresis_trigger():
+    # ROP = 100. 10% hysteresis threshold = 110.
+    # Stock 105 <= 110 -> triggers reorder
+    r_trigger = smart_reorder(forecast_ltd=100, lead_time_days=5, sigma_daily=0, stock=105, review_period_days=7)
+    assert r_trigger["needs_reorder"] is True
+    assert r_trigger["order_qty"] > 0
+
+    # Stock 115 > 110 -> does NOT trigger reorder
+    r_no_trigger = smart_reorder(forecast_ltd=100, lead_time_days=5, sigma_daily=0, stock=115, review_period_days=7)
+    assert r_no_trigger["needs_reorder"] is False
+    assert r_no_trigger["order_qty"] == 0
+
+
+def test_supplier_scores_ignores_short_lead_time_pos():
+    # PO delivered in 0 days (e.g. instant or manual) should be ignored
+    short_po = pd.DataFrame([{
+        "supplier_id": "S1", "status": "Delivered", "delay_days": 10, "quality_issue": False,
+        "order_date": "2026-11-01", "actual_delivery_date": "2026-11-01"  # 0 days
+    }])
+    normal_pos = pd.DataFrame([{
+        "supplier_id": "S1", "status": "Delivered", "delay_days": 0, "quality_issue": False,
+        "order_date": "2026-10-01", "actual_delivery_date": "2026-10-08"  # 7 days
+    }] * 10)
+    combined = pd.concat([normal_pos, short_po], ignore_index=True)
+    res = supplier_scores(combined)
+    # The short PO was filtered out, so delivered_pos is 10 and avg_delay_days is 0
+    assert res.loc["S1", "delivered_pos"] == 10
+    assert res.loc["S1", "avg_delay_days"] == 0.0
+
+
+def test_p010_reorder_recommendation_positive():
+    from app.decision import get_demand_rate
+    # P010 under peak season demand rate without double counting (approx 80 u/day) with stock 490 and on_order 8
+    # Inventory position is 498, expected order ~ 500-700 units
+    d_rate = get_demand_rate("P010")
+    assert 75.0 <= d_rate <= 105.0
+    res = smart_reorder(forecast_ltd=d_rate * 7, lead_time_days=7, sigma_daily=17.0,
+                        stock=490, on_order=8, reliability=97.0, demand_rate=d_rate)
+    assert res["needs_reorder"] is True
+    assert 500 <= res["order_qty"] <= 750
+
+
+def test_hysteresis_and_low_margin_reorder_recommendations():
+    # Products P001, P002, P037 with risk >= 30% and low margin (< 3d) must get reorder recommendations
+    from app.insights import insights_for_product
+    for pid in ["P001", "P002", "P037"]:
+        r = insights_for_product(pid)
+        assert r["reorder"]["needs_reorder"] is True
+        assert r["reorder"]["order_qty"] > 0

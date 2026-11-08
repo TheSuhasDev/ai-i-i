@@ -91,7 +91,7 @@ export const poCreate = z
     qtyReceived: z.coerce.number().int().min(0).optional(),
     unitCost: z.coerce.number().min(0),
     qualityIssue: z.boolean().optional(),
-    status: z.enum(["Pending", "Approved", "In Transit", "Delivered", "Cancelled"]).optional(),
+    status: z.enum(["Pending", "Approved", "In Transit", "Partially Delivered", "Delivered", "Cancelled"]).optional(),
     confirmDuplicate: z.boolean().optional(),
   })
   .refine(
@@ -113,7 +113,7 @@ export const poUpdate = z.object({
   qtyReceived: z.coerce.number().int().min(0).optional(),
   unitCost: z.coerce.number().min(0).optional(),
   qualityIssue: z.boolean().optional(),
-  status: z.enum(["Pending", "Approved", "In Transit", "Delivered", "Cancelled"]).optional(),
+  status: z.enum(["Pending", "Approved", "In Transit", "Partially Delivered", "Delivered", "Cancelled"]).optional(),
   confirmDuplicate: z.boolean().optional(),
 }).refine(
   (data) => {

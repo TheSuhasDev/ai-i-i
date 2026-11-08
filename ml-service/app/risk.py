@@ -70,17 +70,24 @@ def supplier_history(pos, daily):
     return res.fillna({"sup_ontime": ONTIME_PRIOR, "sup_delay": DELAY_PRIOR})
 
 
-def product_features(f, lt):
+def product_features(f, lt, on_order=0.0, demand_rate=None):
     """Features for every day of ONE product. f needs: date, units_sold, stock_on_hand, sup_ontime, sup_delay."""
     u = f["units_sold"].astype(float)
     s = f["stock_on_hand"].astype(float)
+    if on_order > 0:
+        s = s.copy()
+        s.iloc[-1] += float(on_order)
     mean7 = u.rolling(7, min_periods=7).mean()
     mean28 = u.rolling(28, min_periods=28).mean()
     mean90 = u.rolling(90, min_periods=60).mean()
     std60 = u.rolling(60, min_periods=30).std()
 
     m28 = mean28.clip(lower=0.5)
-    ltd_hat = m28 * lt
+    d_rate = m28.copy()
+    if demand_rate is not None and demand_rate > 0:
+        d_rate.iloc[-1] = float(demand_rate)
+
+    ltd_hat = d_rate * lt
     ss_hat = Z_SERVICE * std60 * np.sqrt(lt)
     doy = f["date"].dt.dayofyear
 
@@ -88,7 +95,7 @@ def product_features(f, lt):
         "date": f["date"],
         "stock_ratio": (s / (ltd_hat + ss_hat)).clip(0, 10),
         "cover_ltd": (s / ltd_hat).clip(0, 20),
-        "cover_days": (s / m28).clip(0, 365),
+        "cover_days": (s / d_rate).clip(0, 365),
         "mean7_ratio": (mean7 / m28).clip(0, 5),
         "growth_28_90": (m28 / mean90.clip(lower=0.5)).clip(0, 5),
         "cv_60": (std60 / m28).clip(0, 5),
@@ -215,8 +222,8 @@ def load_bundle():
     return joblib.load(RISK_MODEL_PATH)  # FileNotFoundError if not trained yet
 
 
-def risk_for_product(product_id, stock=None):
-    """Stockout risk as of the last data day. `stock` optionally overrides today's stock (used by the Day 12 simulator)."""
+def risk_for_product(product_id, stock=None, on_order=0.0, demand_rate=None):
+    """Stockout risk as of the last data day. `stock` and `on_order` optionally override."""
     bundle = load_bundle()
     s = load_series().get(str(product_id))
     if s is None:
@@ -225,7 +232,7 @@ def risk_for_product(product_id, stock=None):
     f = s["frame"].copy()
     if stock is not None:
         f.loc[f.index[-1], "stock_on_hand"] = float(stock)
-    row = product_features(f, s["lt"]).iloc[-1]
+    row = product_features(f, s["lt"], on_order=float(on_order or 0.0), demand_rate=demand_rate).iloc[-1]
     if row[RFEATS].isna().any():
         raise ValueError("Not enough history (need 60+ days) to score this product")
 
@@ -233,6 +240,8 @@ def risk_for_product(product_id, stock=None):
     raw = bundle["model"].predict_proba(X)[:, 1]
     p = float(apply_calibration(bundle["calibrator"], raw)[0])
     pct = round(p * 100, 1)
+
+    effective_demand_rate = float(demand_rate if demand_rate is not None and demand_rate > 0 else f["units_sold"].tail(28).mean())
 
     return {
         "product_id": str(product_id),
@@ -249,6 +258,7 @@ def risk_for_product(product_id, stock=None):
             "stock_ratio": round(float(row["stock_ratio"]), 2),
             "days_of_cover": round(float(row["cover_days"]), 1),
             "avg_daily_demand_28d": round(float(f["units_sold"].tail(28).mean()), 1),
+            "demand_rate": round(effective_demand_rate, 1),
             "demand_momentum_7d_vs_28d": round(float(row["mean7_ratio"]), 2),
             "demand_growth_28d_vs_90d": round(float(row["growth_28_90"]), 2),
             "supplier_on_time_rate": round(float(row["sup_ontime"]), 2),

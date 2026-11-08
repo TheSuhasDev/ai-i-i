@@ -16,6 +16,7 @@ import {
   fmtUnits,
   fmtUnitsPerDay,
   formatDate,
+  formatMarginSigned,
   formatWeekTick,
   money,
   num,
@@ -162,7 +163,7 @@ function ProductInsight({ code }) {
 
   useEffect(() => {
     if (d?.name) {
-      document.title = `${d.name} (${d.product_id}) · AI Inventory Intelligence`;
+      document.title = `${d.name} (${d.product_id}) · Replenix`;
     }
   }, [d?.name, d?.product_id]);
 
@@ -256,10 +257,16 @@ function ProductInsight({ code }) {
   const onOrderQty = Number(d.inputs?.on_order || 0);
   const deliveryDateLabel = onOrderQty > 0 ? "Expected delivery date" : "Earliest delivery if ordered today";
 
+  const marginDays = d.stockout?.margin_days;
   const isCoverShort =
-    d.stockout?.margin_days != null
-      ? d.stockout.margin_days < 0
+    marginDays != null
+      ? marginDays < 0
       : (d.stockout?.days_of_cover ?? 0) < (d.stockout?.days_to_delivery ?? 0);
+  const isCoverTight =
+    !isCoverShort &&
+    (marginDays != null
+      ? marginDays < 5
+      : (d.stockout?.days_of_cover ?? 0) - (d.stockout?.days_to_delivery ?? 0) < 5);
 
   return (
     <div>
@@ -370,17 +377,21 @@ function ProductInsight({ code }) {
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "6px" }}>
               <h3 style={{ margin: 0, fontSize: "1.05rem", fontWeight: 600 }}>Stock Cover vs Delivery Lead Time</h3>
               <span
-                className={`pill ${isCoverShort ? "status-critical" : "status-healthy"}`}
+                className={`pill ${isCoverShort ? "status-critical" : isCoverTight ? "status-warning" : "status-healthy"}`}
                 style={{ fontSize: "12px", fontWeight: 600 }}
               >
                 {isCoverShort
                   ? `${d.stockout?.days_of_cover ?? 0} days of stock vs ${d.stockout?.days_to_delivery ?? 0} days to delivery (Short)`
+                  : isCoverTight
+                  ? `${d.stockout?.days_of_cover ?? 0} days of stock vs ${d.stockout?.days_to_delivery ?? 0} days to delivery (Tight buffer)`
                   : `${d.stockout?.days_of_cover ?? 0} days of stock vs ${d.stockout?.days_to_delivery ?? 0} days to delivery (Safe buffer)`}
               </span>
             </div>
             <p className="muted small" style={{ margin: "0 0 10px 0" }}>
               {isCoverShort
                 ? `Critical deficit: Stock will run out in ${fmtDays(d.stockout?.days_of_cover, 1)}, but replenishment arrives in ${fmtDays(d.stockout?.days_to_delivery, 1)} (short by ${fmtDays(Math.abs(d.stockout?.margin_days || 0), 1)}).`
+                : isCoverTight
+                ? `Tight buffer: Existing inventory sustains operations for ${fmtDays(d.stockout?.days_of_cover, 1)}, leaving only ${fmtDays(d.stockout?.margin_days, 1)} margin past the ${fmtDays(d.stockout?.days_to_delivery, 1)} delivery arrival.`
                 : `Safe buffer: Existing inventory sustains operations for ${fmtDays(d.stockout?.days_of_cover, 1)}, well past the ${fmtDays(d.stockout?.days_to_delivery, 1)} delivery arrival.`}
             </p>
             <div
@@ -501,8 +512,8 @@ function ProductInsight({ code }) {
                 <dd>{fmtUnits(d.inputs?.on_order, 0)}</dd>
               </div>
               <div>
-                <dt>Lead time</dt>
-                <dd>{fmtDays(d.inputs?.lead_time_days ?? d.lead_time_days, 0)}</dd>
+                <dt>Effective lead time</dt>
+                <dd>{fmtDays(d.stockout?.effective_lead_time_days ?? d.reorder?.effective_lead_time_days ?? d.inputs?.effective_lead_time_days ?? d.inputs?.lead_time_days, 1)}</dd>
               </div>
               <div>
                 <dt>Expected stockout date</dt>
@@ -521,8 +532,10 @@ function ProductInsight({ code }) {
                 <dd>
                   {d.stockout?.margin_days != null
                     ? d.stockout.margin_days < 0
-                      ? `${fmtDays(d.stockout.margin_days, 1)} (short by ${fmtDays(Math.abs(d.stockout.margin_days), 1)})`
-                      : `${fmtDays(d.stockout.margin_days, 1)} (safe)`
+                      ? `${formatMarginSigned(d.stockout.margin_days)} days (short by ${fmtDays(Math.abs(d.stockout.margin_days), 1)})`
+                      : d.stockout.margin_days < 5
+                      ? `${formatMarginSigned(d.stockout.margin_days)} days (tight)`
+                      : `${formatMarginSigned(d.stockout.margin_days)} days (safe)`
                     : "-"}
                 </dd>
               </div>
@@ -748,7 +761,7 @@ export function TrendSeasonality({ trend }) {
 
   const weekly = Array.isArray(trend.weekly_series) ? trend.weekly_series : [];
   const joinedPattern = trend.pattern?.includes("+ seasonal");
-  const badgeLabel = joinedPattern ? "trend+seasonal" : trend.pattern || "unknown";
+  const badgeLabel = trend.pattern || "unknown";
   const badgeClass = joinedPattern ? "trend-seasonal" : (trend.pattern || "unknown").replaceAll(" ", "-");
 
   const yoyVal =
@@ -758,14 +771,18 @@ export function TrendSeasonality({ trend }) {
 
   let yoyPhrase = "Demand is flat year over year";
   let signedYoy = "0.0%";
+  let salesTrendText = "flat";
   if (yoyVal != null) {
     signedYoy = `${yoyVal > 0 ? "+" : ""}${num(yoyVal, 1)}%`;
     if (Math.abs(yoyVal) < 1) {
       yoyPhrase = "Demand is flat year over year";
+      salesTrendText = "flat";
     } else if (yoyVal > 0) {
       yoyPhrase = `Demand is up ${num(Math.abs(yoyVal), 1)}% year over year`;
+      salesTrendText = `up ${num(Math.abs(yoyVal), 1)}%`;
     } else {
       yoyPhrase = `Demand is down ${num(Math.abs(yoyVal), 1)}% year over year`;
+      salesTrendText = `down ${num(Math.abs(yoyVal), 1)}%`;
     }
   }
 
@@ -810,8 +827,11 @@ export function TrendSeasonality({ trend }) {
   );
   const lowestMonthName = lowestMonthEntry ? LONG_MONTHS[MONTHS.indexOf(lowestMonthEntry.month)] || lowestMonthEntry.month : null;
 
+  const peakText = peakUplift ? `+${peakUplift} above average` : "above average";
+  const lowText = lowestMonthEntry?.pctDiff != null ? `${lowestMonthEntry.pctDiff > 0 ? "+" : ""}${lowestMonthEntry.pctDiff}%` : "0%";
+
   const seasonalityTakeaway = hasSeasonality
-    ? `Seasonal peak in ${peakMonth} (+${peakUplift || "peak"} above average); lowest in ${lowestMonthName || "off-season"} (${lowestMonthEntry?.pctDiff || 0}%).`
+    ? `Seasonal peak in ${peakMonth} (${peakText}); lowest in ${lowestMonthName || "off-season"} (${lowText}).`
     : "No recurring seasonal pattern detected. Demand does not show predictable month-to-month cycles.";
 
   return (
@@ -856,7 +876,11 @@ export function TrendSeasonality({ trend }) {
         <ChartCard
           title="Demand: This Year vs Last Year"
           subtitle="Compares actual weekly volume against the same week of the previous year to spot growth trends."
-          takeaway={`Sales are ${yoyPhrase.toLowerCase()} (${signedYoy} overall).`}
+          takeaway={
+            yoyVal == null
+              ? "Year-over-year sales demand data is unavailable."
+              : `Sales are ${salesTrendText} year over year (${signedYoy} overall).`
+          }
           takeawayTone={yoyVal > 0 ? "healthy" : yoyVal < 0 ? "critical" : "info"}
           empty={!yearComparisonData.length}
           emptyMessage="Weekly demand history is not available."

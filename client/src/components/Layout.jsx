@@ -6,6 +6,7 @@ import AssistantWidget from "./AssistantWidget";
 import { ProductImageProvider } from "../context/ProductImageViewer";
 import CommandPalette from "./CommandPalette";
 import NotificationBell from "./NotificationBell";
+import Logo from "./Logo";
 
 const links = [
   { to: "/", label: "Dashboard", end: true },
@@ -48,6 +49,20 @@ export default function Layout() {
   });
 
   useEffect(() => {
+    window.scrollTo({ top: 0, left: 0, behavior: "instant" });
+  }, [location.pathname]);
+
+  useEffect(() => {
+    const handleThemeChange = (e) => {
+      if (e.detail && (e.detail === "dark" || e.detail === "light")) {
+        setTheme(e.detail);
+      }
+    };
+    window.addEventListener("inventory-theme-changed", handleThemeChange);
+    return () => window.removeEventListener("inventory-theme-changed", handleThemeChange);
+  }, []);
+
+  useEffect(() => {
     const handleOnline = () => setIsOnline(true);
     const handleOffline = () => setIsOnline(false);
     window.addEventListener("online", handleOnline);
@@ -83,7 +98,7 @@ export default function Layout() {
     else if (path === "/assistant") title = "AI Assistant";
     else if (path === "/audit-logs") title = "Audit Logs";
     else if (path === "/settings") title = "Settings & Profile";
-    document.title = `${title} | AI Inventory Intelligence`;
+    document.title = `${title} | Replenix`;
   }, [location.pathname]);
 
   useEffect(() => {
@@ -245,7 +260,7 @@ export default function Layout() {
   const sidebarToggleTitle = sidebarExpanded ? "Close sidebar" : "Open sidebar";
 
   return (
-    <div className="app">
+    <div className={`app ${desktopOpen ? "desktop-sidebar-open" : ""} ${isOverlayMode && sidebarOpen ? "mobile-sidebar-open" : ""}`}>
       {isOverlayMode && sidebarOpen && <button className="sidebar-backdrop" aria-label="Close navigation" onClick={closeSidebar} />}
       {!isOverlayMode && <div className="sidebar-hover-zone" aria-hidden="true" onMouseEnter={revealOnHover} onMouseLeave={scheduleDesktopClose} />}
       <aside
@@ -259,6 +274,23 @@ export default function Layout() {
         onFocusCapture={openForNavFocus}
         onBlurCapture={leaveNavFocus}
       >
+        <div className="brand">
+          <div className="brand-content">
+            <Logo height={26} theme="dark" alt="Replenix" />
+            <span className="brand-tagline">Predict. Prevent. Replenish.</span>
+          </div>
+          {isOverlayMode && (
+            <button
+              type="button"
+              className="mobile-close-btn"
+              onClick={closeSidebar}
+              aria-label="Close navigation"
+              title="Close navigation"
+            >
+              ✕
+            </button>
+          )}
+        </div>
         <nav>
           {links
             .filter((l) => !l.adminOnly || isAdmin)
@@ -273,7 +305,7 @@ export default function Layout() {
       </aside>
       <div className="main">
         <header className="topbar">
-          <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+          <div className="topbar-left">
             <button
               type="button"
               className="mobile-menu-button"

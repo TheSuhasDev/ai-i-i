@@ -1,5 +1,5 @@
 """
-Synthetic data generator for AI Inventory Intelligence (Day 2).
+Synthetic data generator for Replenix.
 Run from ml-service/:  python data/generate_data.py
 Seed 42 -> reproducible. Outputs CSV files next to this script.
 """

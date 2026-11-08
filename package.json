@@ -1,6 +1,7 @@
 {
-  "name": "ai-inventory-intelligence",
+  "name": "replenix",
   "version": "1.0.0",
+  "description": "Replenix — Predict. Prevent. Replenish.",
   "private": true,
   "scripts": {
     "seed:refresh": "npm --prefix server run seed:refresh"

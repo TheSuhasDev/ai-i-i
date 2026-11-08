@@ -6,6 +6,7 @@ export default function useList(service, initial = {}) {
   const [params, setParams] = useState({ page: 1, limit: 15, ...initial });
   const [data, setData] = useState([]);
   const [pagination, setPagination] = useState(null);
+  const [summary, setSummary] = useState(null);
   const [loading, setLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [error, setError] = useState("");
@@ -34,6 +35,12 @@ export default function useList(service, initial = {}) {
           if (JSON.stringify(prev) === JSON.stringify(res.pagination)) return prev;
           return res.pagination;
         });
+        if (res.summary !== undefined) {
+          setSummary((prev) => {
+            if (JSON.stringify(prev) === JSON.stringify(res.summary)) return prev;
+            return res.summary;
+          });
+        }
         setError("");
       })
       .catch((e) => {
@@ -76,5 +83,5 @@ export default function useList(service, initial = {}) {
     setTick((t) => t + 1);
   }, []);
 
-  return { data, pagination, loading, isRefreshing, error, params, filter, setPage, reload };
+  return { data, pagination, summary, loading, isRefreshing, error, params, filter, setPage, reload };
 }

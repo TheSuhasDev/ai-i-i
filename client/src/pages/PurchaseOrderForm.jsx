@@ -111,7 +111,14 @@ export default function PurchaseOrderForm() {
     const val = e.target.value;
     setForm((f) => {
       const next = { ...f, [key]: val };
-      // When all items have been received (qtyReceived >= qtyOrdered > 0), automatically mark as Delivered
+      // Keep PO number date synchronized with orderDate
+      if (key === "orderDate" && val) {
+        const dStr = val.replaceAll("-", "");
+        if (/^PO-\d{8}-/i.test(f.poNumber)) {
+          next.poNumber = f.poNumber.replace(/^PO-\d{8}-/i, `PO-${dStr}-`);
+        }
+      }
+      // When items are partially received, mark as Partially Delivered; when fully received, mark as Delivered
       if (key === "qtyReceived") {
         const received = Number(val);
         const ordered = Number(f.qtyOrdered);
@@ -120,16 +127,26 @@ export default function PurchaseOrderForm() {
           if (!next.actualDeliveryDate) {
             next.actualDeliveryDate = todayInput();
           }
+        } else if (ordered > 0 && received > 0 && received < ordered && f.status !== "Cancelled") {
+          next.status = "Partially Delivered";
         }
       }
       return next;
     });
   };
 
-  // Entering an actual delivery date marks the order as Delivered.
+  // Entering an actual delivery date marks the order as Delivered (or Partially Delivered if qty remaining).
   const setActual = (e) => {
     const v = e.target.value;
-    setForm((f) => ({ ...f, actualDeliveryDate: v, status: v ? "Delivered" : f.status }));
+    setForm((f) => {
+      const ord = Number(f.qtyOrdered || 0);
+      const rec = Number(f.qtyReceived || 0);
+      let status = f.status;
+      if (v) {
+        status = (rec > 0 && rec < ord) ? "Partially Delivered" : "Delivered";
+      }
+      return { ...f, actualDeliveryDate: v, status };
+    });
   };
 
   const submit = async (e) => {

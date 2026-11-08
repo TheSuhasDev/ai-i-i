@@ -31,8 +31,9 @@ function Body({ lines }) {
 function parseAnswer(text) {
   const sections = [];
   let cur = null;
-  text.split("\n").forEach((line) => {
-    const match = line.match(/^#{1,4}\s*(facts?|recommendations?)\b/i);
+  (text || "").split("\n").forEach((line) => {
+    const clean = line.replace(/^[*_#\s]+/, "").trim();
+    const match = clean.match(/^(facts?|recommendations?)\b/i);
     if (match) {
       cur = { kind: match[1].toLowerCase().startsWith("fact") ? "facts" : "recommendation", lines: [] };
       sections.push(cur);
@@ -63,12 +64,14 @@ function Answer({ message }) {
         </div>
       ))}
       {message.toolCalls?.length > 0 && (
-        <details className="used">
-          <summary>Data used ({message.toolCalls.length} lookups)</summary>
-          <ul>
+        <details className="used mt-2 text-xs">
+          <summary className="cursor-pointer select-none text-[var(--muted)] hover:text-[var(--text)]">
+            Data used ({message.toolCalls.length} lookup{message.toolCalls.length === 1 ? "" : "s"})
+          </summary>
+          <ul className="mt-1 pl-4 space-y-0.5">
             {message.toolCalls.map((tool, i) => (
               <li key={i}>
-                <code>{tool.name}({Object.keys(tool.input || {}).length ? JSON.stringify(tool.input) : ""})</code>
+                <code className="text-xs">{tool.name}({Object.keys(tool.input || {}).length ? JSON.stringify(tool.input) : ""})</code>
                 {tool.ok ? "" : " (failed)"}
               </li>
             ))}
@@ -87,11 +90,30 @@ export default function ChatMessages({ messages, busy, emptyText = "", className
 
   return (
     <div className={`chat-window ${className}`} aria-live="polite">
-      {messages.length === 0 && emptyText && <p className="muted">{emptyText}</p>}
-      {messages.map((message, i) => message.role === "user"
-        ? <div key={i} className="msg user">{message.content}</div>
-        : <Answer key={i} message={message} />)}
-      {busy && <p className="muted assistant-loading">Looking up your data...</p>}
+      {messages.length === 0 && emptyText && <p className="muted text-sm">{emptyText}</p>}
+      {messages.map((message, i) => (
+        <div key={i} className={`msg-row ${message.role}`}>
+          {message.role === "user" ? (
+            <div className="msg user">
+              <span className="msg-text">{message.content}</span>
+            </div>
+          ) : (
+            <Answer message={message} />
+          )}
+        </div>
+      ))}
+      {busy && (
+        <div className="msg-row assistant">
+          <div className="msg assistant loading-bubble" role="status" aria-label="Loading response">
+            <div className="typing-dots" aria-hidden="true">
+              <span className="dot"></span>
+              <span className="dot"></span>
+              <span className="dot"></span>
+            </div>
+            <span className="loading-text">Looking up live system data...</span>
+          </div>
+        </div>
+      )}
       <div ref={endRef} />
     </div>
   );

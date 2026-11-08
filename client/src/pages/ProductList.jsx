@@ -24,13 +24,31 @@ const PRODUCT_COLS = [
   { header: "Category", key: "category" },
   { header: "Price (INR)", key: "price" },
   { header: "Cost (INR)", key: "cost" },
+  {
+    header: "Margin (%)",
+    key: "margin",
+    format: (v, p) => (p?.price ? `${Math.round(((p.price - (p.cost || 0)) / p.price) * 100)}%` : "0%"),
+  },
   { header: "Lead time (days)", key: "leadTimeDays" },
 ];
+
+function calculateMargin(p) {
+  if (typeof p?.price === "number" && p.price > 0 && typeof p?.cost === "number") {
+    return Math.round(((p.price - p.cost) / p.price) * 100);
+  }
+  return 0;
+}
+
+function marginPillClass(marginPct) {
+  if (marginPct < 0) return "status-critical";
+  if (marginPct < 30) return "status-warning";
+  return "status-healthy";
+}
 
 export default function ProductList() {
   const { canWrite, isAdmin } = useAuth();
   const toast = useToast();
-  const { data, pagination, loading, error, params, filter, setPage, reload } = useList(productService, {
+  const { data, pagination, summary, loading, error, params, filter, setPage, reload } = useList(productService, {
     sort: "code",
   });
   const [actionError, setActionError] = useState("");
@@ -58,16 +76,49 @@ export default function ProductList() {
     filter({ search });
   }, [filter]);
 
-  const activeCount = data.filter((p) => p.isActive !== false).length;
-  const avgLeadTime = data.length ? data.reduce((s, p) => s + (p.leadTimeDays || 0), 0) / data.length : 0;
+  const handleSort = (field) => {
+    const currentSort = params.sort || "code";
+    const isAsc = currentSort === field;
+    const newSort = isAsc ? `-${field}` : field;
+    filter({ sort: newSort });
+  };
+
+  const renderSortHeader = (label, field) => {
+    const currentSort = params.sort || "code";
+    const isField = currentSort === field || currentSort === `-${field}`;
+    const isAsc = currentSort === field;
+    return (
+      <th>
+        <button
+          type="button"
+          className="sort-button"
+          onClick={() => handleSort(field)}
+          title={`Sort by ${label}`}
+        >
+          {label} {isField ? (isAsc ? "▲" : "▼") : ""}
+        </button>
+      </th>
+    );
+  };
+
+  const activeCount = summary?.activeCount ?? data.filter((p) => p.isActive !== false).length;
+  const avgLeadTime = summary?.avgLeadTime ?? (data.length ? data.reduce((s, p) => s + (p.leadTimeDays || 0), 0) / data.length : 0);
 
   const categoryDistribution = useMemo(() => {
+    if (summary?.categoryDistribution) {
+      const map = Object.fromEntries(summary.categoryDistribution.map((c) => [c.category, c.count]));
+      return CATEGORIES.map((cat) => ({
+        category: cat.length > 14 ? `${cat.slice(0, 12)}…` : cat,
+        fullName: cat,
+        count: map[cat] || 0,
+      })).filter((c) => c.count > 0);
+    }
     return CATEGORIES.map((cat) => ({
       category: cat.length > 14 ? `${cat.slice(0, 12)}…` : cat,
       fullName: cat,
       count: data.filter((p) => p.category === cat).length,
     })).filter((c) => c.count > 0);
-  }, [data]);
+  }, [summary, data]);
 
   return (
     <div>
@@ -153,7 +204,8 @@ export default function ProductList() {
             <div style={{ gridColumn: "1 / -1", textAlign: "center", padding: "40px", color: "var(--text-muted)" }}>No products found</div>
           ) : (
             data.map((p) => {
-              const marginPct = p.price && p.cost ? Math.round(((p.price - p.cost) / p.price) * 100) : 0;
+              const marginPct = calculateMargin(p);
+              const marginClass = marginPillClass(marginPct);
               return (
                 <div key={p._id} className="card" style={{ display: "flex", flexDirection: "column", justifyContent: "space-between", padding: "16px", borderRadius: "12px", border: "1px solid var(--border)" }}>
                   <div>
@@ -171,7 +223,9 @@ export default function ProductList() {
                     </div>
                     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "8px" }}>
                       <span className="pill status-info" style={{ fontSize: "11px" }}>{p.category}</span>
-                      <span className="pill status-healthy" style={{ fontSize: "11px" }}>{marginPct}% margin</span>
+                      <span className={`pill ${marginClass}`} style={{ fontSize: "11px" }}>
+                        {marginPct > 0 ? `+${marginPct}%` : `${marginPct}%`} margin
+                      </span>
                     </div>
                     <div style={{ display: "flex", justifyContent: "space-between", padding: "8px 0", borderTop: "1px solid var(--border)", borderBottom: "1px solid var(--border)", margin: "8px 0", fontSize: "13px" }}>
                       <div>
@@ -180,12 +234,12 @@ export default function ProductList() {
                       </div>
                       <div style={{ textAlign: "right" }}>
                         <span className="muted small" style={{ display: "block" }}>Lead Time</span>
-                        <span>⏱️ {p.leadTimeDays}d</span>
+                        <span>⏱️ {p.leadTimeDays ?? "—"}d</span>
                       </div>
                     </div>
                     {p.suppliers?.length > 0 && (
                       <p className="muted small" style={{ margin: "4px 0 10px", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-                        🚚 {p.suppliers.map((s) => s.name).join(", ")}
+                        🚚 {p.suppliers.map((s) => s?.name || s?.code || s).filter(Boolean).join(", ")}
                       </p>
                     )}
                   </div>
@@ -204,13 +258,13 @@ export default function ProductList() {
           <table>
             <thead>
               <tr>
-                <th>Product</th>
-                <th>SKU</th>
-                <th>Category</th>
-                <th>Price</th>
-                <th>Cost</th>
+                {renderSortHeader("Product", "name")}
+                {renderSortHeader("SKU", "sku")}
+                {renderSortHeader("Category", "category")}
+                {renderSortHeader("Price", "price")}
+                {renderSortHeader("Cost", "cost")}
                 <th>Margin</th>
-                <th>Lead time</th>
+                {renderSortHeader("Lead time", "leadTimeDays")}
                 <th>Suppliers</th>
                 {canWrite && <th></th>}
               </tr>
@@ -222,7 +276,8 @@ export default function ProductList() {
                 <tr><td colSpan={8 + Number(canWrite)} className="center">No products found</td></tr>
               ) : (
                 data.map((p) => {
-                  const marginPct = p.price && p.cost ? Math.round(((p.price - p.cost) / p.price) * 100) : 0;
+                  const marginPct = calculateMargin(p);
+                  const marginClass = marginPillClass(marginPct);
                   return (
                     <tr key={p._id}>
                       <td><ProductCell product={p} imageList={data} /></td>
@@ -231,12 +286,12 @@ export default function ProductList() {
                       <td style={{ fontWeight: 600 }}>{money(p.price)}</td>
                       <td className="muted">{money(p.cost)}</td>
                       <td>
-                        <span className={`pill ${marginPct >= 30 ? "status-healthy" : "status-warning"}`} style={{ fontSize: "11px" }}>
+                        <span className={`pill ${marginClass}`} style={{ fontSize: "11px" }}>
                           {marginPct > 0 ? `+${marginPct}%` : `${marginPct}%`}
                         </span>
                       </td>
-                      <td><span className="badge">⏱️ {p.leadTimeDays}d</span></td>
-                      <td>{p.suppliers?.map((s) => s.name).join(", ") || "-"}</td>
+                      <td><span className="badge">⏱️ {p.leadTimeDays ?? "—"}d</span></td>
+                      <td>{p.suppliers?.map((s) => s?.name || s?.code || s).filter(Boolean).join(", ") || "-"}</td>
                       {canWrite && (
                         <td className="actions">
                           <Link className="btn small" to={`/products/${p._id}/edit`}>Edit</Link>

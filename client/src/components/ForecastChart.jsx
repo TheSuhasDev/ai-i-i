@@ -196,7 +196,7 @@ export default function ForecastChart({ history = [], forecast = [], leadTimeDay
         <p className="muted small" style={{ margin: "10px 0 0 0", fontSize: "0.8rem", lineHeight: 1.4 }}>
           Demand over the {leadTimeDays}-day lead time: <strong>{num(leadTimeDemand, 0)} units</strong>
           {leadTimeDemandHigh != null && <> (cautious estimate (90th percentile) <strong>{num(leadTimeDemandHigh, 0)} units</strong>)</>}.
-          Forecast assumes steady baseline operations without promotional lift.
+          Forecast reflects seasonal index dynamics and baseline operations.
         </p>
       )}
     </ChartCard>

@@ -5,6 +5,7 @@ import { insightService } from "../services";
 export default function NotificationBell() {
   const [open, setOpen] = useState(false);
   const [notifications, setNotifications] = useState([]);
+  const [criticalTotal, setCriticalTotal] = useState(0);
   const [loading, setLoading] = useState(false);
   const bellRef = useRef(null);
 
@@ -17,7 +18,8 @@ export default function NotificationBell() {
         if (!mounted || !res) return;
         const insights = res.data?.data || [];
         const items = [];
-        const stockouts = insights.filter((i) => i.priority === "Critical").length;
+        const kpiCritical = res.data?.kpi?.critical?.products;
+        const stockouts = kpiCritical != null ? kpiCritical : insights.filter((i) => i.priority === "Critical").length;
         const lowStock = insights.filter((i) => i.riskPct >= 30).length;
         const overdue = insights.filter((i) => i.orderQty > 0 && i.priority === "Critical").length;
 
@@ -28,7 +30,7 @@ export default function NotificationBell() {
             badge: "Critical",
             title: `${stockouts} Critical Stockout${stockouts > 1 ? "s" : ""}`,
             desc: "Items require immediate emergency replenishment.",
-            link: "/alerts",
+            link: "/alerts?priority=Critical",
           });
         }
         if (lowStock > 0) {
@@ -52,6 +54,7 @@ export default function NotificationBell() {
           });
         }
         setNotifications(items);
+        setCriticalTotal(stockouts);
       } catch {
         // Keep resilient if backend is warming up
       } finally {
@@ -96,9 +99,9 @@ export default function NotificationBell() {
         type="button"
         className={`notification-bell-btn ${open ? "active" : ""}`}
         onClick={() => setOpen((prev) => !prev)}
-        aria-label={`System notifications (${totalAlerts} active)`}
+        aria-label={`System notifications (${criticalTotal} critical alert${criticalTotal === 1 ? "" : "s"})`}
         aria-expanded={open}
-        title="System notifications"
+        title={criticalTotal > 0 ? `${criticalTotal} critical alert${criticalTotal === 1 ? "" : "s"} require immediate attention` : "System notifications"}
       >
         <svg
           width="16"
@@ -115,9 +118,9 @@ export default function NotificationBell() {
           <path d="M10.3 21a1.94 1.94 0 0 0 3.4 0" />
         </svg>
 
-        {totalAlerts > 0 && (
+        {criticalTotal > 0 && (
           <span className="notification-bell-badge" aria-hidden="true">
-            {totalAlerts}
+            {criticalTotal}
           </span>
         )}
       </button>

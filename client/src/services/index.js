@@ -51,5 +51,7 @@ export const assistantService = {
 
 export const authService = {
   login: (email, password) => api.post("/auth/login", { email, password }),
+  logout: () => api.post("/auth/logout"),
   me: () => api.get("/auth/me"),
+  updateProfile: (body) => api.put("/auth/profile", body),
 };

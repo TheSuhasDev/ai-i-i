@@ -54,32 +54,165 @@ def safety_stock(sigma_daily, lead_time_days, mean_daily=0.0, lt_std_days=0.0, z
     return float(z * math.sqrt(var))
 
 
+def get_demand_rate(product, forecast=None, avg_daily_28d=None, trend=None, as_of_date=None, weekly_history=None):
+    """
+    Returns single unified daily demand rate for all engines:
+    - max(avg_daily_28d, forecast_P90_daily)
+    - DO NOT multiply by the seasonal index when the 28d window already covers the peak
+    - Apply seasonal index only to the forecast, never on top of the 28d average
+    - Cap demand_rate at 1.3 x (max observed weekly sales / 7)
+    - Logs the chosen basis per product
+    """
+    import os
+    import logging
+    from datetime import date
+    logger = logging.getLogger("decision")
+
+    pid = str(product if isinstance(product, (str, int)) else product.get("product_id"))
+    
+    if as_of_date is None:
+        as_of_date = date.fromisoformat(os.environ["AS_OF_DATE"]) if os.environ.get("AS_OF_DATE") else date.today()
+    elif isinstance(as_of_date, str):
+        as_of_date = date.fromisoformat(as_of_date)
+
+    if trend is None:
+        try:
+            from app.trend import trend_for_product
+            trend = trend_for_product(pid)
+        except Exception:
+            trend = None
+
+    # Check if 28d window already covers the peak month
+    peak_in_28d = False
+    if trend and trend.get("seasonal", False):
+        peak_month_str = trend.get("peak_month")
+        if peak_month_str:
+            import calendar
+            months_in_28d = {calendar.month_abbr[(as_of_date - pd.Timedelta(days=k)).month] for k in range(28)}
+            peak_in_28d = peak_month_str in months_in_28d
+
+    if forecast is None:
+        try:
+            from app.forecasting import forecast_product
+            # Only apply seasonal index to forecast when 28d window doesn't already cover peak
+            forecast = forecast_product(pid, apply_seasonality=(not peak_in_28d))
+        except Exception:
+            forecast = None
+
+    if avg_daily_28d is None:
+        if isinstance(product, dict) and "mean_daily_28" in product:
+            avg_daily_28d = float(product["mean_daily_28"])
+        else:
+            try:
+                s = load_series().get(pid)
+                if s is not None:
+                    avg_daily_28d = float(s["frame"]["units_sold"].tail(28).mean())
+                else:
+                    avg_daily_28d = 0.0
+            except Exception:
+                avg_daily_28d = 0.0
+
+    forecast_p90_daily = 0.0
+    if forecast and "weeks" in forecast and len(forecast["weeks"]) > 0:
+        forecast_p90_daily = float(np.mean([w.get("high", w["forecast"]) for w in forecast["weeks"]])) / 7.0
+    elif forecast and "lead_time_demand_high" in forecast:
+        lt = float(forecast.get("lead_time_days", 7)) or 7.0
+        forecast_p90_daily = float(forecast.get("lead_time_demand_high", 0.0)) / lt
+
+    # Max observed weekly sales / 7
+    max_weekly_daily = 100.0
+    try:
+        if weekly_history is not None:
+            w = weekly_history[weekly_history["product_id"].astype(str) == pid]
+            if not w.empty:
+                max_weekly_daily = float(w["units"].max()) / 7.0
+        else:
+            from app.forecasting import load_state
+            _, weekly = load_state()
+            w = weekly[weekly["product_id"].astype(str) == pid]
+            if not w.empty:
+                max_weekly_daily = float(w["units"].max()) / 7.0
+    except Exception:
+        pass
+
+    cap = 1.3 * max_weekly_daily
+    avg_28 = float(avg_daily_28d or 0.0)
+
+    if forecast_p90_daily >= avg_28:
+        rate = forecast_p90_daily
+        basis = "forecast_P90_daily"
+    else:
+        rate = avg_28
+        basis = "avg_daily_28d"
+
+    final_rate = min(rate, cap)
+    final_rate = round(float(final_rate), 2)
+
+    msg = f"[DemandRate] Product {pid}: rate={final_rate:.2f} u/d (basis={basis}, avg28d={avg_28:.2f}, forecast_p90={forecast_p90_daily:.2f}, cap={cap:.2f}, peak_in_28d={peak_in_28d})"
+    logger.info(msg)
+
+    return final_rate
+
+
 def smart_reorder(forecast_ltd, lead_time_days, sigma_daily, stock, on_order=0.0,
                   reliability=100.0, avg_delay_days=0.0, lt_std_days=0.0, z=Z_SERVICE,
-                  moq=10):
-    """forecast_ltd = forecast demand over the nominal lead time. reliability = supplier score 0-100."""
+                  moq=10, review_period_days=7, demand_rate=None, backorders=0.0,
+                  risk_pct=None, margin_days=None, product_id=None):
+    """
+    Apply unified order-up-to logic to ALL products:
+    target = demand_over_lead_time + safety_stock + review_period_demand
+    qty = ceil(max(0, target - inventory_position)), rounded to MOQ.
+    Hysteresis trigger: position <= ROP * 1.10, or risk >= 30% with low margin (< 3d).
+    """
+    import logging
+    logger = logging.getLogger("decision")
+
     if lead_time_days <= 0:
         raise ValueError("lead_time_days must be positive")
     reliability = min(max(float(reliability), 0.0), 100.0)
-    daily = max(float(forecast_ltd), 0.0) / lead_time_days
+    
+    daily = float(demand_rate) if demand_rate is not None and float(demand_rate) > 0 else (max(float(forecast_ltd), 0.0) / lead_time_days)
     eff_lt = lead_time_days + max(float(avg_delay_days), 0.0)
     demand = daily * eff_lt
     ss = safety_stock(sigma_daily, lead_time_days, daily, lt_std_days, z)
     buffer = ss * (1 + RELIABILITY_BUFFER * (1 - reliability / 100))
-    target = demand + buffer
-    position = float(stock) + float(on_order)
-    raw_qty = max(0, math.ceil(target - position - 1e-9))
-    qty = max(raw_qty, moq) if raw_qty > 0 else 0
+    reorder_point = demand + buffer
+    review_demand = daily * float(review_period_days)
+    target = reorder_point + review_demand
+
+    position = float(stock) + float(on_order) - float(backorders)
+    hysteresis_trigger = position <= (reorder_point * 1.10 + 1e-9)
+    risk_margin_trigger = (risk_pct is not None and risk_pct >= 30.0 and margin_days is not None and margin_days < 3.0)
+    needs_reorder = hysteresis_trigger or risk_margin_trigger
+
+    if needs_reorder:
+        raw_qty = max(0, math.ceil(target - position - 1e-9))
+        if raw_qty > 0 and moq > 0:
+            qty = math.ceil(raw_qty / moq) * moq
+        else:
+            qty = raw_qty
+    else:
+        qty = 0
+
+    logger.debug(
+        f"[ReorderLogic] SKU={product_id}: demand_rate={daily:.2f}, lead_time={eff_lt:.1f}, "
+        f"safety_stock={buffer:.1f}, ROP={reorder_point:.1f}, position={position:.1f}, "
+        f"target={target:.1f}, order_qty={qty}"
+    )
+
     return {
         "order_qty": int(qty),
-        "needs_reorder": qty > 0,
-        "reorder_point": round(target, 1),
+        "needs_reorder": bool(qty > 0),
+        "reorder_point": round(reorder_point, 1),
+        "order_up_to_target": round(target, 1),
         "demand_over_lead_time": round(demand, 1),
         "safety_stock": round(buffer, 1),
+        "review_period_demand": round(review_demand, 1),
         "effective_lead_time_days": round(eff_lt, 1),
         "inventory_position": round(position, 1),
         "days_of_cover": round(float(stock) / daily, 1) if daily > 0 else None,
     }
+
 
 
 # ---------------------------------------------------------------- ABC-XYZ
@@ -121,6 +254,16 @@ def reliability_from_metrics(on_time, avg_delay, delay_std, quality_rate):
 def supplier_scores(pos):
     """pos needs: supplier_id, status, delay_days, quality_issue. Only delivered POs count."""
     d = pos[pos["status"] == "Delivered"].copy()
+    if "actual_delivery_date" in d.columns and "order_date" in d.columns:
+        act_dt = pd.to_datetime(d["actual_delivery_date"], errors="coerce")
+        ord_dt = pd.to_datetime(d["order_date"], errors="coerce")
+        lt_days = (act_dt - ord_dt).dt.total_seconds() / 86400.0
+        # Ignore POs received in < 1 day or marked delivered manually
+        valid_mask = (lt_days >= 1.0) | lt_days.isna()
+        for mcol in ["manual", "is_manual", "manually_delivered"]:
+            if mcol in d.columns:
+                valid_mask &= ~_flag(d[mcol]).astype(bool)
+        d = d[valid_mask].copy()
     d["delay_days"] = pd.to_numeric(d["delay_days"], errors="coerce").fillna(0.0)
     d["late"] = (d["delay_days"] > 0).astype(float)
     d["delay_pos"] = d["delay_days"].clip(lower=0)

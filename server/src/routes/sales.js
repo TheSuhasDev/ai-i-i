@@ -13,19 +13,46 @@ const ADMIN_ONLY = ["admin"];
 const crud = makeCrud({
   Model: Sale,
   label: "Sale",
+  auditCollection: "sales",
   populate: [{ path: "product", select: "code name category" }],
   filterFields: ["product", "promoFlag"],
   defaultSort: "-date",
   buildFilter: (q) => {
     const f = {};
     const from = typeof q.from === "string" && q.from ? new Date(q.from) : null;
-    const to = typeof q.to === "string" && q.to ? new Date(q.to) : null;
+    let to = typeof q.to === "string" && q.to ? new Date(q.to) : null;
     if (from || to) {
       f.date = {};
       if (from) f.date.$gte = from;
-      if (to) f.date.$lte = to;
+      if (to) {
+        if (/^\d{4}-\d{2}-\d{2}$/.test(q.to)) {
+          to = new Date(`${q.to}T23:59:59.999Z`);
+        }
+        f.date.$lte = to;
+      }
     }
     return f;
+  },
+  buildSummary: async (filter, Model) => {
+    const [totals, promoCount] = await Promise.all([
+      Model.aggregate([
+        { $match: filter },
+        {
+          $group: {
+            _id: null,
+            totalUnits: { $sum: "$unitsSold" },
+            totalRevenue: { $sum: "$revenue" },
+          },
+        },
+      ]),
+      Model.countDocuments({ ...filter, promoFlag: true }),
+    ]);
+
+    return {
+      totalUnits: totals[0]?.totalUnits || 0,
+      totalRevenue: totals[0]?.totalRevenue || 0,
+      promoCount,
+    };
   },
   beforeCreate: (data) => ({ ...data, revenue: data.revenue ?? data.unitsSold * data.unitPrice }),
   beforeUpdate: (data, existing) => {
@@ -102,8 +129,8 @@ const router = Router();
 router.use(protect);
 router.get("/", crud.list);
 router.get("/:id", crud.getOne);
-router.post("/", authorize("admin", "manager", "staff"), validate(saleCreate), auditCreate(crud.create));
-router.put("/:id", authorize("admin", "manager"), validate(saleUpdate), auditUpdate(crud.update));
-router.delete("/:id", authorize(...ADMIN_ONLY), auditDelete(crud.remove));
+router.post("/", authorize("admin", "manager", "staff"), validate(saleCreate), crud.create);
+router.put("/:id", authorize("admin", "manager"), validate(saleUpdate), crud.update);
+router.delete("/:id", authorize(...ADMIN_ONLY), crud.remove);
 
 export default router;

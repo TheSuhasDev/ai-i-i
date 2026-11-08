@@ -14,11 +14,18 @@ router.get(
     const limit = Math.min(Math.max(parseInt(req.query.limit, 10) || 50, 1), 200);
     const filter = {};
 
-    if (typeof req.query.collection === "string" && req.query.collection) {
-      filter.collection = req.query.collection.toLowerCase();
+    if (typeof req.query.collection === "string" && req.query.collection.trim()) {
+      const col = req.query.collection.trim().toLowerCase();
+      if (col === "purchase_orders" || col === "purchaseorders" || col === "purchase-orders") {
+        filter.collection = { $in: ["purchase_orders", "purchaseorders", "purchase-orders"] };
+      } else if (col === "inventory" || col === "inventories") {
+        filter.collection = { $in: ["inventory", "inventories"] };
+      } else {
+        filter.collection = col;
+      }
     }
-    if (typeof req.query.action === "string" && req.query.action) {
-      filter.action = req.query.action.toLowerCase();
+    if (typeof req.query.action === "string" && req.query.action.trim()) {
+      filter.action = req.query.action.trim().toLowerCase();
     }
 
     const [logs, total] = await Promise.all([

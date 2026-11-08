@@ -15,7 +15,7 @@ router.get(
     const limit = Math.min(Math.max(parseInt(req.query.limit) || 50, 1), 500);
     const params = {
       days,
-      limit: limit * page + 1, // fetch enough for server-side pagination
+      limit: 1000, // Fetch up to 1000 from ML service so total counts and full horizons are complete
     };
     if (typeof req.query.productCode === "string" && req.query.productCode) {
       params.product_id = req.query.productCode.toUpperCase();
@@ -34,6 +34,7 @@ router.get(
       data: {
         ...raw,
         anomalies: paginated,
+        allAnomalies: all,
         count: paginated.length,
         total,
         pagination: { page, limit, total, pages: Math.ceil(total / limit) },

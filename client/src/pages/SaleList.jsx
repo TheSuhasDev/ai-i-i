@@ -29,7 +29,7 @@ const SALE_COLS = [
 export default function SaleList() {
   const { user, isAdmin } = useAuth();
   const toast = useToast();
-  const { data, pagination, loading, error, params, filter, setPage, reload } = useList(saleService, {
+  const { data, pagination, summary, loading, error, params, filter, setPage, reload } = useList(saleService, {
     sort: "-date",
   });
   const [products, setProducts] = useState([]);
@@ -57,9 +57,35 @@ export default function SaleList() {
     }
   };
 
-  const totalUnits = data.reduce((s, row) => s + (row.unitsSold || 0), 0);
-  const totalRevenue = data.reduce((s, row) => s + (row.revenue || 0), 0);
-  const promoCount = data.filter((row) => row.promoFlag).length;
+  const handleSort = (field) => {
+    const currentSort = params.sort || "-date";
+    const isAsc = currentSort === field;
+    const newSort = isAsc ? `-${field}` : field;
+    filter({ sort: newSort });
+  };
+
+  const renderSortHeader = (label, field) => {
+    const currentSort = params.sort || "-date";
+    const isField = currentSort === field || currentSort === `-${field}`;
+    const isAsc = currentSort === field;
+    return (
+      <th>
+        <button
+          type="button"
+          className="sort-button"
+          onClick={() => handleSort(field)}
+          title={`Sort by ${label}`}
+        >
+          {label} {isField ? (isAsc ? "▲" : "▼") : ""}
+        </button>
+      </th>
+    );
+  };
+
+  const totalUnits = summary?.totalUnits ?? data.reduce((s, row) => s + (row.unitsSold || 0), 0);
+  const totalRevenue = summary?.totalRevenue ?? data.reduce((s, row) => s + (row.revenue || 0), 0);
+  const promoCount = summary?.promoCount ?? data.filter((row) => row.promoFlag).length;
+  const recordCount = pagination?.total ?? data.length;
 
   const salesTimeSeries = useMemo(() => {
     const sorted = [...data].sort((a, b) => new Date(a.date) - new Date(b.date));
@@ -80,9 +106,9 @@ export default function SaleList() {
       />
 
       <div className="cards" style={{ marginBottom: "16px" }}>
-        <MetricCard label="Units Sold (Page)" value={num(totalUnits, 0)} sub="Total volume on screen" tone="tone-healthy" />
-        <MetricCard label="Revenue (Page)" value={money(totalRevenue)} sub="Gross revenue on screen" tone="tone-healthy" />
-        <MetricCard label="Promo Transactions" value={promoCount} sub={`Out of ${data.length} records`} tone="tone-warning" />
+        <MetricCard label="Units Sold" value={num(totalUnits, 0)} sub={`Volume across ${num(recordCount, 0)} records`} tone="tone-healthy" />
+        <MetricCard label="Gross Revenue" value={money(totalRevenue)} sub="Total recorded sales revenue" tone="tone-healthy" />
+        <MetricCard label="Promo Transactions" value={promoCount} sub={`Out of ${num(recordCount, 0)} records`} tone="tone-warning" />
       </div>
 
       <div className="toolbar" style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: "10px" }}>
@@ -133,7 +159,12 @@ export default function SaleList() {
         <table>
           <thead>
             <tr>
-              <th>Date</th><th>Product</th><th>Units sold</th><th>Unit price</th><th>Revenue</th><th>Promo</th>
+              {renderSortHeader("Date", "date")}
+              <th>Product</th>
+              {renderSortHeader("Units sold", "unitsSold")}
+              {renderSortHeader("Unit price", "unitPrice")}
+              {renderSortHeader("Revenue", "revenue")}
+              <th>Promo</th>
               {isAdmin && <th></th>}
             </tr>
           </thead>

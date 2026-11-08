@@ -12,6 +12,7 @@ import { crudRouter } from "./crudRouter.js";
 const crud = makeCrud({
   Model: Supplier,
   label: "Supplier",
+  auditCollection: "suppliers",
   searchFields: ["name", "code", "city"],
   filterFields: ["city"],
   defaultSort: "code",
@@ -26,7 +27,7 @@ const getDeliveries = asyncHandler(async (req, res) => {
     supplier = await Supplier.findById(req.params.id);
   }
   if (!supplier) {
-    supplier = await Supplier.findOne({ code: req.params.id });
+    supplier = await Supplier.findOne({ code: String(req.params.id).trim().toUpperCase() });
   }
   if (!supplier) throw new AppError("Supplier not found", 404);
 

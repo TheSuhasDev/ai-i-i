@@ -56,8 +56,8 @@ function formatSummaryBanner(r) {
 
   // Expected stockout date ("06 Nov 2026 -> 08 Nov 2026")
   if (a.expected_stockout_date !== b.expected_stockout_date) {
-    const was = b.expected_stockout_date ? formatDate(b.expected_stockout_date) : "none within 30 days";
-    const now = a.expected_stockout_date ? formatDate(a.expected_stockout_date) : "none within 30 days";
+    const was = b.expected_stockout_date ? formatDate(b.expected_stockout_date) : "none in 30 days";
+    const now = a.expected_stockout_date ? formatDate(a.expected_stockout_date) : "none in 30 days";
     parts.push(`Expected stockout: ${was} -> ${now}.`);
   }
 
@@ -95,7 +95,7 @@ function getOutOfStockPeriods(chartData) {
     periods.push({ start, end: 30 });
   }
 
-  return periods;
+  return periods.map((p) => (p.start === p.end ? { start: Math.max(0, p.start - 0.5), end: p.end } : p));
 }
 
 const fetchProducts = () => productService.list({ limit: 100, sort: "code" });
@@ -188,7 +188,7 @@ export default function Simulator() {
   const b = r?.before;
   const a = r?.after;
   const baseStock = b ? b.stock : 0;
-  const stockMax = Math.max(Math.ceil((baseStock * 2) / 10) * 10, 200);
+  const stockMax = Math.max(Math.ceil((baseStock * 3) / 10) * 10, 1000);
 
   const chart = useMemo(() => {
     if (!r) return [];
@@ -272,7 +272,7 @@ export default function Simulator() {
             <button className="btn small" onClick={reset}>Reset</button>
           </div>
 
-          <SliderRow label="Demand change" value={demandPct} min={-50} max={100} step={5} suffix="%" onChange={setDemandPct} />
+          <SliderRow label="Demand change" value={demandPct} min={-90} max={300} step={5} suffix="%" onChange={setDemandPct} />
           <SliderRow label="Extra supplier delay" value={delay} min={0} max={30} step={1} suffix=" days" onChange={setDelay} />
           <SliderRow label="Stock on hand" value={stock ?? baseStock} min={0} max={stockMax} step={1} suffix=" units" onChange={setStock} />
           <SliderRow
@@ -324,19 +324,26 @@ export default function Simulator() {
                   safetyStock ?? 0
                 );
                 const isAllZero = chart.length > 0 && maxDataStock <= 0;
-                const yMax = isAllZero ? 10 : Math.max(10, Math.ceil(maxWithRef * 1.15));
+                const yMax = Math.max(10, Math.ceil(maxWithRef * 1.15));
                 const yDomain = [0, yMax];
 
-                const zeroMessage = "No scenario changes: stock stays at 0 for the next 30 days";
+                const neutral =
+                  r.scenario?.demand_pct === 0 &&
+                  r.scenario?.extra_delay_days === 0 &&
+                  (r.scenario?.stock == null || r.scenario?.stock === b.stock) &&
+                  r.scenario?.order_qty === 0;
+                const zeroMessage = neutral
+                  ? "No scenario changes: stock stays at 0 for the next 30 days"
+                  : "Under this scenario, stock stays at 0 for the next 30 days";
                 const takeaway = isAllZero
                   ? zeroMessage
                   : a.units_short_30d === 0
                   ? "Scenario projection maintains healthy stock with zero units short over 30 days."
                   : `Scenario projects ${num(a.units_short_30d, 0)} units short (${num(a.risk_pct, 1)}% stockout risk) over 30 days.`;
 
-                const orderArrivalStep = chart.find((d) => d.isStep);
-                const arrivalDay = orderArrivalStep
-                  ? Math.round(orderArrivalStep.stepDay || orderArrivalStep.day)
+                const newOrderArrival = a.arrivals?.find((arr) => arr.is_new);
+                const arrivalDay = newOrderArrival
+                  ? newOrderArrival.day
                   : Math.round(a.lead_time_days);
 
                 return (

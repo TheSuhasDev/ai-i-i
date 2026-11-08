@@ -15,19 +15,29 @@ const PATTERNS = [
   { key: "decreasing", label: "Decreasing" },
   { key: "stable", label: "Stable" },
   { key: "seasonal", label: "Seasonal" },
-  { key: "increasing+seasonal", label: "Increasing + seasonal" },
+  { key: "increasing+seasonal", label: "Increasing + Seasonal" },
+  { key: "decreasing+seasonal", label: "Decreasing + Seasonal" },
 ];
 
 function patternKey(trend) {
   const pattern = String(trend?.pattern || "").toLowerCase().replace(/[\s_-]/g, "");
+  if (pattern.includes("seasonal") && pattern.startsWith("decreasing")) {
+    return "decreasing+seasonal";
+  }
   if (pattern.includes("seasonal") && (pattern.startsWith("increasing") || pattern.startsWith("trend"))) {
+    if (trend?.trend === "decreasing") {
+      return "decreasing+seasonal";
+    }
     return "increasing+seasonal";
   }
   return PATTERNS.some(({ key }) => key === pattern) ? pattern : "unknown";
 }
 
 function badgeClass(key) {
-  return key === "increasing+seasonal" ? "trend-pattern-trend-seasonal" : `trend-pattern-${key}`;
+  if (key === "increasing+seasonal" || key === "decreasing+seasonal") {
+    return "trend-pattern-trend-seasonal";
+  }
+  return `trend-pattern-${key}`;
 }
 
 function SelectedTrendCharts({ product }) {
@@ -208,7 +218,7 @@ export default function TrendSeasonalityPage() {
                       }}
                     >
                       <td><ProductCell product={product} size="md" to={null} imageList={rows} /></td>
-                      <td><span className={`trend-pattern ${badgeClass(key)}`}>{key === "increasing+seasonal" ? "Increasing + seasonal" : key}</span></td>
+                      <td><span className={`trend-pattern ${badgeClass(key)}`}>{PATTERNS.find((p) => p.key === key)?.label || (key === "unknown" ? "Unknown" : key)}</span></td>
                       <td>{yoy == null ? "—" : `${Number(yoy) > 0 ? "+" : ""}${num(yoy, 1)}%`}</td>
                       <td>{product.trend?.peak_month || "—"}</td>
                       <td>{product.trend?.peak_uplift_pct == null ? "—" : `${num(product.trend.peak_uplift_pct, 1)}%`}</td>

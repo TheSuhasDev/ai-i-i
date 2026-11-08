@@ -7,34 +7,47 @@ export default function useAssistantChat() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [configured, setConfigured] = useState(true);
+  const busyRef = useRef(false);
   const lastQuestionRef = useRef("");
 
   useEffect(() => {
-    assistantService.status().then((r) => setConfigured(r.data.data.configured)).catch(() => {});
+    assistantService
+      .status()
+      .then((r) => setConfigured(Boolean(r.data?.data?.configured)))
+      .catch(() => {});
   }, []);
 
   const _ask = useCallback(async (next) => {
+    busyRef.current = true;
     setBusy(true);
     setError("");
     try {
       const history = next.slice(-11).map(({ role, content }) => ({ role, content }));
       const r = await assistantService.ask(history);
-      const d = r.data.data;
+      const d = r.data?.data;
+      if (!d) throw new Error("Empty response received");
       setMessages([...next, { role: "assistant", content: d.answer, toolCalls: d.toolCalls }]);
     } catch (e) {
-      setError(
-        e.response?.status === 429
-          ? "The assistant is busy right now. Please wait a moment and try again."
-          : "Couldn't get an answer. Please try again."
-      );
+      const status = e.response?.status;
+      const apiMsg = e.response?.data?.message;
+      if (status === 429) {
+        setError(apiMsg || "The assistant is busy right now. Please wait a moment and try again.");
+      } else {
+        setError(apiMsg || "Couldn't get an answer. Please try again.");
+      }
     } finally {
+      busyRef.current = false;
       setBusy(false);
     }
   }, []);
 
   const send = useCallback(async (text) => {
-    const q = text.trim();
-    if (!q || busy || !configured) return;
+    const q = (text || "").trim();
+    if (!q || busyRef.current || busy || !configured) return;
+    if (q.length > 2000) {
+      setError("Please keep your question under 2,000 characters.");
+      return;
+    }
     lastQuestionRef.current = q;
     const next = [...messages, { role: "user", content: q }];
     setMessages(next);
@@ -43,8 +56,7 @@ export default function useAssistantChat() {
   }, [_ask, busy, configured, messages]);
 
   const retry = useCallback(() => {
-    if (busy || !lastQuestionRef.current) return;
-    // Remove the last user message (which has no assistant reply yet) and resend.
+    if (busyRef.current || busy || !lastQuestionRef.current) return;
     const lastUser = messages.findLastIndex((m) => m.role === "user");
     const base = lastUser >= 0 ? messages.slice(0, lastUser) : messages;
     const q = lastQuestionRef.current;
@@ -53,5 +65,12 @@ export default function useAssistantChat() {
     _ask(next);
   }, [_ask, busy, messages]);
 
-  return { messages, input, setInput, busy, error, configured, send, retry };
+  const clear = useCallback(() => {
+    if (busyRef.current || busy) return;
+    setMessages([]);
+    setError("");
+    lastQuestionRef.current = "";
+  }, [busy]);
+
+  return { messages, input, setInput, busy, error, configured, send, retry, clear };
 }

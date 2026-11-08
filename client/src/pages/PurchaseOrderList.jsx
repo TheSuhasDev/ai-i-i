@@ -25,7 +25,7 @@ const PO_COLS = [
   { header: "Order date", key: "orderDate", format: fmtDate },
   { header: "Expected delivery", key: "expectedDeliveryDate", format: fmtDate },
   { header: "Actual delivery", key: "actualDeliveryDate", format: fmtDate },
-  { header: "Delay (days)", key: "delayDays", format: (v, row) => (row.status === "Delivered" && v < 0 ? 0 : v ?? "-") },
+  { header: "Delay (days)", key: "delayDays", format: (v) => v ?? "-" },
   { header: "Qty ordered", key: "qtyOrdered" },
   { header: "Qty received", key: "qtyReceived" },
   { header: "Status", key: "status" },
@@ -35,7 +35,7 @@ const PO_COLS = [
 
 function getOverdueDays(po) {
   if (!po.expectedDeliveryDate) return 0;
-  if (!["Pending", "In Transit"].includes(po.status)) return 0;
+  if (!["Pending", "Approved", "In Transit", "In transit"].includes(po.status)) return 0;
   const today = new Date();
   today.setHours(0, 0, 0, 0);
   const expected = new Date(po.expectedDeliveryDate);
@@ -47,7 +47,7 @@ function getOverdueDays(po) {
 export default function PurchaseOrderList() {
   const { canWrite, isAdmin } = useAuth();
   const toast = useToast();
-  const { data, pagination, loading, error, params, filter, setPage, reload } = useList(purchaseOrderService, {
+  const { data, pagination, summary, loading, error, params, filter, setPage, reload } = useList(purchaseOrderService, {
     sort: "-orderDate",
   });
   const [actionError, setActionError] = useState("");
@@ -58,6 +58,31 @@ export default function PurchaseOrderList() {
   const handleSearch = useCallback((search) => {
     filter({ search });
   }, [filter]);
+
+  const handleSort = (field) => {
+    const currentSort = params.sort || "-orderDate";
+    const isAsc = currentSort === field;
+    const newSort = isAsc ? `-${field}` : field;
+    filter({ sort: newSort });
+  };
+
+  const renderSortHeader = (label, field) => {
+    const currentSort = params.sort || "-orderDate";
+    const isField = currentSort === field || currentSort === `-${field}`;
+    const isAsc = currentSort === field;
+    return (
+      <th>
+        <button
+          type="button"
+          className="sort-button"
+          onClick={() => handleSort(field)}
+          title={`Sort by ${label}`}
+        >
+          {label} {isField ? (isAsc ? "▲" : "▼") : ""}
+        </button>
+      </th>
+    );
+  };
 
   const confirmCancel = async () => {
     if (!cancelTarget) return;
@@ -91,16 +116,23 @@ export default function PurchaseOrderList() {
     }
   };
 
-  const openOrders = data.filter((po) => ["Pending", "Approved", "In Transit"].includes(po.status)).length;
-  const inTransitOrders = data.filter((po) => po.status === "In Transit").length;
-  const overdueCount = data.filter((po) => getOverdueDays(po) > 0).length;
+  const openOrders = summary?.openOrders ?? data.filter((po) => ["Pending", "Approved", "In Transit", "In transit"].includes(po.status)).length;
+  const inTransitOrders = summary?.inTransitOrders ?? data.filter((po) => ["In Transit", "In transit"].includes(po.status)).length;
+  const overdueCount = summary?.overdueCount ?? data.filter((po) => getOverdueDays(po) > 0).length;
 
   const statusDistribution = useMemo(() => {
+    if (summary?.statusDistribution) {
+      const map = Object.fromEntries(summary.statusDistribution.map((s) => [s.status, s.count]));
+      return PO_STATUSES.map((status) => ({
+        status,
+        count: map[status] || 0,
+      })).filter((s) => s.count > 0);
+    }
     return PO_STATUSES.map((status) => ({
       status,
       count: data.filter((po) => po.status === status).length,
     })).filter((s) => s.count > 0);
-  }, [data]);
+  }, [summary, data]);
 
   return (
     <div>
@@ -134,7 +166,7 @@ export default function PurchaseOrderList() {
         <ChartCard
           title="Purchase Orders by Status"
           subtitle="How are supplier orders distributed across fulfillment stages?"
-          takeaway={`${data.length} total orders; ${openOrders} currently open (${inTransitOrders} in transit).`}
+          takeaway={`${pagination?.total ?? data.length} total orders; ${openOrders} currently open (${inTransitOrders} in transit).`}
           className="mb-4"
         >
           <div style={{ width: "100%", height: 190 }}>
@@ -152,6 +184,8 @@ export default function PurchaseOrderList() {
                       fill={
                         entry.status === "Delivered"
                           ? "var(--success)"
+                          : entry.status === "Partially Delivered"
+                          ? "var(--warning)"
                           : entry.status === "In Transit"
                           ? "var(--chart-1)"
                           : entry.status === "Cancelled"
@@ -173,8 +207,15 @@ export default function PurchaseOrderList() {
         <table>
           <thead>
             <tr>
-              <th>PO</th><th>Product</th><th>Supplier</th><th>Order Date</th><th>Expected</th>
-              <th>Status</th><th>Fulfillment</th><th>ETA / Delay</th><th className="col-quality">Quality</th>
+              {renderSortHeader("PO", "poNumber")}
+              <th>Product</th>
+              <th>Supplier</th>
+              {renderSortHeader("Order Date", "orderDate")}
+              {renderSortHeader("Expected", "expectedDeliveryDate")}
+              {renderSortHeader("Status", "status")}
+              {renderSortHeader("Fulfillment", "qtyOrdered")}
+              <th>ETA / Delay</th>
+              <th className="col-quality">Quality</th>
               {canWrite && <th className="sticky-actions-col">Actions</th>}
             </tr>
           </thead>
@@ -213,6 +254,8 @@ export default function PurchaseOrderList() {
                   <td>
                     {isOverdue ? (
                       <span className="pill status-critical" style={{ fontSize: "11px" }}>⚠️ Late by {overdueDays}d</span>
+                    ) : po.status === "Partially Delivered" ? (
+                      <span className="pill status-warning" style={{ fontSize: "11px" }}>📦 Partial ({progressPct}%)</span>
                     ) : po.status === "In Transit" ? (
                       <span className="pill status-warning" style={{ fontSize: "11px" }}>🚚 In Transit</span>
                     ) : po.status === "Delivered" ? (

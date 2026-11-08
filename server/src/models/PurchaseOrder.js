@@ -13,7 +13,7 @@ const purchaseOrderSchema = new mongoose.Schema(
     qtyReceived: { type: Number, default: 0, min: 0 },
     unitCost: { type: Number, required: true, min: 0 },
     qualityIssue: { type: Boolean, default: false },
-    status: { type: String, enum: ["Pending", "Approved", "In Transit", "Delivered", "Cancelled"], default: "Pending" },
+    status: { type: String, enum: ["Pending", "Approved", "In Transit", "Partially Delivered", "Delivered", "Cancelled"], default: "Pending" },
   },
   { timestamps: true }
 );
@@ -93,9 +93,19 @@ purchaseOrderSchema.post("init", function () {
 });
 
 purchaseOrderSchema.pre("save", function () {
-  if (this.status === "Delivered" && (!this.qtyReceived || this.qtyReceived === 0)) {
-    this.qtyReceived = this.qtyOrdered;
+  const ordered = Number(this.qtyOrdered || 0);
+  const received = Number(this.qtyReceived || 0);
+
+  if (this.status !== "Cancelled") {
+    if (received > 0 && received < ordered) {
+      this.status = "Partially Delivered";
+    } else if (received >= ordered && ordered > 0) {
+      this.status = "Delivered";
+    } else if (this.status === "Delivered" && received === 0 && ordered > 0) {
+      this.qtyReceived = ordered;
+    }
   }
+
   const prev = this._originalReceived ?? (this.isNew ? 0 : 0);
   const cur = this.qtyReceived ?? 0;
   this._receiptDelta = Math.max(cur - prev, 0);

@@ -24,9 +24,10 @@ import pandas as pd
 
 from app.decision import smart_reorder
 from app.forecasting import forecast_product, lead_time_demand
-from app.health import PRIORITY_RANK, alert_priority, health_score
-from app.insights import NEUTRAL_SUPPLIER, _open_pos, _tables, today
+from app.health import PRIORITY_RANK, alert_priority, classify_cover_margin, health_score
+from app.insights import NEUTRAL_SUPPLIER, _alerts, _open_pos, _pos_table, _tables, get_demand_rate, today
 from app.risk import RFEATS, apply_calibration, load_bundle, load_series, product_features, risk_level
+from app.trend import trend_for_product
 
 HORIZON = 30
 WINDOW = 28
@@ -67,10 +68,10 @@ def project_stock(stock, daily, arrivals, days=HORIZON):
 
 # ---------------------------------------------------------------- risk under a scenario
 
-def _risk_row(frame, lt, stock, factor, extra_delay):
+def _risk_row(frame, lt, stock, factor, extra_delay, demand_rate=None, on_order=0.0):
     f = scale_recent_units(frame, factor)
     f.loc[f.index[-1], "stock_on_hand"] = float(stock)
-    row = product_features(f, lt + extra_delay).iloc[-1]   # extra delay = longer effective lead time
+    row = product_features(f, lt + extra_delay, on_order=on_order, demand_rate=demand_rate).iloc[-1]   # extra delay = longer effective lead time
     if row[RFEATS].isna().any():
         raise ValueError("Not enough history (need 60+ days) to simulate this product")
     bundle = load_bundle()
@@ -82,45 +83,64 @@ def _risk_row(frame, lt, stock, factor, extra_delay):
 
 def _state(c, stock, on_order, new_order, factor, extra):
     lt, delay = c["lt"], c["delay"]
-    lt_eff = lt + extra
+    delay_std = c["delay_std"]
+    eff_lt = round(lt + delay + extra, 1)
     daily = c["daily"] * factor
     cover = min(stock / daily, 365.0) if daily > 0.05 else None
 
     arrivals = []
+    is_overdue = False
+    overdue_days = 0
     if on_order > 0:
-        if c["po"] is not None:
-            when = max((c["po"]["date"] - c["as_of"]).days, 0) + delay + extra
+        if c["po"] is not None and c["po"].get("date"):
+            diff_days = (c["po"]["date"] - c["as_of"]).days
+            if diff_days < 0:
+                is_overdue = True
+                overdue_days = abs(diff_days)
+                when = delay + extra
+            else:
+                when = diff_days + delay + extra
         else:
             when = lt + delay + extra
-        arrivals.append((when, on_order))
+        arrivals.append((when, on_order, False))
     if new_order > 0:
-        arrivals.append((lt + delay + extra, new_order))
-    days_deliv = min(w for w, _ in arrivals) if arrivals else lt + delay + extra
-    margin = None if cover is None else round(cover - days_deliv, 1)
-    if margin is not None and abs(margin) < 0.05:
-        margin = 0.0
-    prio = alert_priority(margin)
+        arrivals.append((lt + delay + extra, new_order, True))
 
-    proj = project_stock(stock, daily, arrivals)
+    days_deliv = min(w for w, _, _ in arrivals) if arrivals else eff_lt
+    cover_1d = None if cover is None else (0.0 if abs(cover) < 0.05 else round(float(cover), 1))
+    deliv_1d = round(float(days_deliv), 1)
+    margin_info = classify_cover_margin(cover_1d, deliv_1d)
+    margin = margin_info["margin_days"]
+
+    proj = project_stock(stock, daily, [(w, q) for w, q, _ in arrivals])
     first = proj["first_shortfall_day"]
 
-    row, p, thr = _risk_row(c["frame"], lt, stock, factor, extra)
+    # Risk model: sees live/scenario stock and baseline on_order; does not see new order in transit
+    row, p, thr = _risk_row(c["frame"], lt, stock, factor, extra, demand_rate=daily, on_order=on_order)
     pct = round(p * 100, 1)
 
-    ltd = round(lead_time_demand([w * factor for w in c["weekly"]], lt_eff), 1)
+    ltd = round(lead_time_demand([w * factor for w in c["weekly"]], eff_lt), 1) if (factor != 1.0 or extra != 0) else c["fc"]["lead_time_demand"]
     sc = c["sc"]
-    reorder = smart_reorder(ltd, lt_eff, c["sigma"] * factor, stock, on_order + new_order,
-                            sc["reliability_score"], sc["avg_delay_days"], sc["delay_std_days"])
-    health = health_score(round(float(row["stock_ratio"]), 2), cover, pct, sc["reliability_score"], c["weekly_cv"])
+    reorder = smart_reorder(ltd, lt, c["sigma"] * factor, stock, on_order + new_order,
+                            sc.get("reliability_score", 100.0), avg_delay_days=delay + extra, lt_std_days=delay_std,
+                            demand_rate=daily, risk_pct=pct, margin_days=margin, product_id=c["pid"])
+    reorder["effective_lead_time_days"] = eff_lt
+    reorder["leadTimeSource"] = c["lead_time_source"]
+    reorder["lead_time_source"] = c["lead_time_source"]
+
+    health = health_score(round(float(row["stock_ratio"]), 2), cover, pct, sc.get("reliability_score", 100.0), c["weekly_cv"])
+    alerts = _alerts(cover_1d, deliv_1d, margin, reorder, c["sup_id"], sc, is_overdue, overdue_days,
+                     lead_time_source=c["lead_time_source"], alt_supplier=c["alt_supplier"])
+    card_prio = min(alerts, key=lambda a: PRIORITY_RANK[a["priority"]])["priority"] if alerts else "Low"
 
     return {
         "stock": round(float(stock), 1),
         "on_order": round(float(on_order + new_order), 1),
         "daily_demand": round(float(daily), 2),
-        "lead_time_days": int(lt_eff),
+        "lead_time_days": int(round(eff_lt)),
         "lead_time_demand": ltd,
-        "days_of_cover": None if cover is None else round(float(cover), 1),
-        "days_to_delivery": round(float(days_deliv), 1),
+        "days_of_cover": cover_1d,
+        "days_to_delivery": deliv_1d,
         "margin_days": margin,
         "expected_stockout_date": None if first is None else (c["as_of"] + timedelta(days=first - 1)).isoformat(),
         "first_shortfall_day": first,
@@ -128,10 +148,11 @@ def _state(c, stock, on_order, new_order, factor, extra):
         "risk_pct": pct,
         "risk_level": risk_level(pct),
         "flagged": bool(p >= thr),
-        "priority": prio,
+        "priority": card_prio,
         "health": health,
         "reorder": reorder,
         "projected_stock": proj["levels"],
+        "arrivals": [{"day": max(int(round(w)), 0) + 1, "qty": round(float(q), 1), "is_new": is_new} for w, q, is_new in arrivals],
     }
 
 
@@ -168,6 +189,24 @@ def simulate(product_id, demand_pct=0.0, extra_delay_days=0, stock=None, order_q
     frame = series["frame"]
     sup_id = str(row["supplier_id"])
     sc = sup.get(sup_id, NEUTRAL_SUPPLIER)
+    lt = int(row["lead_time_days"])
+    as_of = today()
+
+    all_pos = _pos_table()
+    d_pos = all_pos[(all_pos["product_id"].astype(str) == pid) & (all_pos["status"] == "Delivered")]
+    if "actual_delivery_date" in d_pos.columns and "order_date" in d_pos.columns:
+        act_dt = pd.to_datetime(d_pos["actual_delivery_date"], errors="coerce")
+        ord_dt = pd.to_datetime(d_pos["order_date"], errors="coerce")
+        lt_days = (act_dt - ord_dt).dt.total_seconds() / 86400.0
+        valid_pos = d_pos[(lt_days >= 1.0) | lt_days.isna()]
+    else:
+        valid_pos = d_pos
+    has_valid_pos = len(valid_pos) >= 3
+    delay = float(sc.get("avg_delay_days", 0.0)) if has_valid_pos else 0.0
+    delay_std = float(sc.get("delay_std_days", 0.0)) if has_valid_pos else 0.0
+    effective_lt = round(lt + max(0.0, delay), 1)
+    lead_time_source = "observed" if has_valid_pos else "configured"
+
     po = _open_pos().get(pid)
     expected_date = base_expected_delivery_date or (po["date"] if po else None)
     if isinstance(expected_date, str):
@@ -176,12 +215,49 @@ def simulate(product_id, demand_pct=0.0, extra_delay_days=0, stock=None, order_q
         po = {**(po or {}), "date": expected_date}
     weekly = [w["forecast"] for w in fc["weeks"]]
 
+    try:
+        tr = trend_for_product(pid)
+    except Exception:
+        tr = None
+    base_dr = get_demand_rate(pid, forecast=fc, avg_daily_28d=row.get("mean_daily_28"), trend=tr, as_of_date=as_of)
+
+    # Alternate supplier resolution matching /insights
+    all_sups = row.get("supplier_ids", [])
+    if isinstance(all_sups, str):
+        all_sups = [all_sups]
+    other_sups = [s for s in all_sups if str(s) != sup_id]
+    alt_supplier = None
+    if other_sups:
+        best_alt_id = max(other_sups, key=lambda s: sup.get(str(s), {}).get("reliability_score", 0))
+        best_alt = sup.get(str(best_alt_id))
+        if best_alt:
+            alt_supplier = {
+                "supplier_id": str(best_alt_id),
+                "reliability_score": best_alt["reliability_score"],
+                "risk_level": best_alt["risk_level"],
+                "avg_delay_days": best_alt["avg_delay_days"],
+            }
+
     cur = float(frame["stock_on_hand"].iloc[-1]) if base_stock is None else float(base_stock)
     qty_in = float(base_on_order) if base_on_order is not None else (po["qty"] if po else 0.0)
     ctx = {
-        "frame": frame, "lt": int(row["lead_time_days"]), "delay": float(sc["avg_delay_days"]), "sc": sc,
-        "sigma": float(row["sigma_daily_60"]), "weekly_cv": float(row["weekly_cv"]), "weekly": weekly,
-        "daily": float(np.mean(weekly)) / 7, "po": po, "as_of": today(),
+        "pid": pid,
+        "frame": frame,
+        "lt": lt,
+        "delay": delay,
+        "delay_std": delay_std,
+        "effective_lt": effective_lt,
+        "lead_time_source": lead_time_source,
+        "sc": sc,
+        "sup_id": sup_id,
+        "alt_supplier": alt_supplier,
+        "sigma": float(row["sigma_daily_60"]),
+        "weekly_cv": float(row["weekly_cv"]),
+        "weekly": weekly,
+        "daily": base_dr,
+        "fc": fc,
+        "po": po,
+        "as_of": as_of,
     }
 
     scen_stock = cur if stock is None else float(stock)

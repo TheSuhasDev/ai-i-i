@@ -2,6 +2,16 @@ import { lazy, Suspense } from "react";
 import { Route, Routes } from "react-router-dom";
 import ProtectedRoute from "./components/ProtectedRoute";
 import Layout from "./components/Layout";
+import Logo from "./components/Logo";
+
+function PageLoadingFallback() {
+  return (
+    <div className="plain-fallback" role="status" style={{ display: "flex", flexDirection: "column", gap: "14px", alignItems: "center", justifyContent: "center", minHeight: "100vh" }}>
+      <Logo height={40} alt="Replenix" />
+      <span style={{ fontSize: "12px", color: "var(--muted, #94a3b8)", letterSpacing: "0.05em", textTransform: "uppercase" }}>Loading Replenix…</span>
+    </div>
+  );
+}
 
 const Login = lazy(() => import("./pages/Login"));
 const Dashboard = lazy(() => import("./pages/Dashboard"));
@@ -31,7 +41,7 @@ const NotFound = lazy(() => import("./pages/NotFound"));
 
 export default function App() {
   return (
-    <Suspense fallback={<div className="plain-fallback" role="status">Loading page…</div>}>
+    <Suspense fallback={<PageLoadingFallback />}>
     <Routes>
       <Route path="/login" element={<Login />} />
 

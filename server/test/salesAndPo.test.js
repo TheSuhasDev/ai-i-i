@@ -15,7 +15,7 @@ test("AuditLog schema has required fields", async () => {
   assert.ok(paths.after !== undefined, "after field missing");
   assert.ok(paths.at, "at field missing");
   // action enum
-  assert.deepEqual(paths.action.enumValues, ["create", "update", "delete"]);
+  assert.deepEqual(paths.action.enumValues, ["create", "update", "delete", "login", "logout"]);
 });
 
 // ---- PO cancel logic ----

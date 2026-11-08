@@ -30,7 +30,7 @@ const INV_COLS = [
 export default function InventoryList() {
   const { canWrite, isAdmin } = useAuth();
   const toast = useToast();
-  const { data, pagination, loading, error, params, filter, setPage, reload } = useList(inventoryService, {
+  const { data, pagination, summary, loading, error, params, filter, setPage, reload } = useList(inventoryService, {
     sort: "currentStock",
   });
   const [products, setProducts] = useState([]);
@@ -59,11 +59,43 @@ export default function InventoryList() {
     }
   };
 
-  const totalStock = data.reduce((s, r) => s + (r.currentStock || 0), 0);
-  const totalInTransit = data.reduce((s, r) => s + (r.inTransitQty || 0), 0);
-  const outOfStockCount = data.filter((r) => r.currentStock === 0).length;
+  const handleSort = (field) => {
+    const currentSort = params.sort || "currentStock";
+    const isAsc = currentSort === field;
+    const newSort = isAsc ? `-${field}` : field;
+    filter({ sort: newSort });
+  };
+
+  const renderSortHeader = (label, field) => {
+    const currentSort = params.sort || "currentStock";
+    const isField = currentSort === field || currentSort === `-${field}`;
+    const isAsc = currentSort === field;
+    return (
+      <th>
+        <button
+          type="button"
+          className="sort-button"
+          onClick={() => handleSort(field)}
+          title={`Sort by ${label}`}
+        >
+          {label} {isField ? (isAsc ? "▲" : "▼") : ""}
+        </button>
+      </th>
+    );
+  };
+
+  const totalStock = summary?.totalStock ?? data.reduce((s, r) => s + (r.currentStock || 0), 0);
+  const totalInTransit = summary?.totalInTransit ?? data.reduce((s, r) => s + (r.inTransitQty || 0), 0);
+  const outOfStockCount = summary?.stockouts ?? data.filter((r) => r.currentStock === 0).length;
 
   const categoryStock = useMemo(() => {
+    if (summary?.categoryStock) {
+      return summary.categoryStock.map(({ category, stock }) => ({
+        category: category.length > 14 ? `${category.slice(0, 12)}…` : category,
+        fullName: category,
+        stock,
+      }));
+    }
     const cats = {};
     for (const r of data) {
       const c = r.product?.category || "Other";
@@ -74,7 +106,7 @@ export default function InventoryList() {
       fullName: name,
       stock,
     }));
-  }, [data]);
+  }, [summary, data]);
 
   return (
     <div>
@@ -210,8 +242,14 @@ export default function InventoryList() {
           <table>
             <thead>
               <tr>
-                <th>Product</th><th>Category</th><th>Current stock</th>
-                <th>Stock Level</th><th>In transit</th><th>Lead time</th><th>Snapshot date</th><th></th>
+                <th>Product</th>
+                <th>Category</th>
+                {renderSortHeader("Current stock", "currentStock")}
+                <th>Stock Level</th>
+                {renderSortHeader("In transit", "inTransitQty")}
+                <th>Lead time</th>
+                {renderSortHeader("Snapshot date", "snapshotDate")}
+                <th></th>
               </tr>
             </thead>
             <tbody>

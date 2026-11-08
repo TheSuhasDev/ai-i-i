@@ -28,7 +28,9 @@ export function exportCsv(filename, columns, rows) {
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
   a.href = url;
-  a.download = filename.endsWith(".csv") ? filename : `${filename}.csv`;
+  const cleanName = filename.replace(/\.csv$/i, "");
+  const baseName = cleanName.toLowerCase().startsWith("replenix-") ? cleanName : `replenix-${cleanName}`;
+  a.download = `${baseName}.csv`;
   document.body.appendChild(a);
   a.click();
   document.body.removeChild(a);
